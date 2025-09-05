@@ -1,0 +1,46 @@
+{
+  "name": "CO‑SAFE Connect — Vehicle CO Monitor",
+  "short_name": "CO‑SAFE",
+  "description": "Safety‑critical mobile web app for real‑time vehicle CO monitoring (PWA).",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#1976D2",
+  "lang": "en",
+  "scope": "/",
+  "categories": ["health", "safety", "automotive"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/appstore.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/appstore.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Quickly access emergency features",
+      "url": "/dashboard?emergency=true",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "32x32"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1976D2" />
+    <title>CO‑SAFE Connect — Vehicle CO Monitor</title>
+    <meta name="description" content="Safety‑critical mobile web app for real‑time vehicle CO monitoring (PWA)." />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Icons and Favicons -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/appstore.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/appstore.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/appstore.png" />
+    
+    <!-- iOS Safari PWA Configuration -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CO‑SAFE" />
+    
+    <!-- Windows PWA Configuration -->
+    <meta name="msapplication-TileColor" content="#1976D2" />
+    <meta name="msapplication-TileImage" content="/appstore.png" />
+    
+    <!-- Security and Performance -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
