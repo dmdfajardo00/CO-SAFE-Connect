@@ -77,7 +77,7 @@ function App() {
             >
               <p className="text-base font-semibold flex items-center gap-2">
                 CO-SAFE — <span className="text-primary flex items-center gap-1">
-                  <Icon icon="mdi:home" className="w-4 h-4" />
+                  <Icon icon="mdi:car" className="w-4 h-4" />
                   {device.name || 'Monitor'}
                   <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showSourceSelector ? 'rotate-180' : ''}`} />
                 </span>

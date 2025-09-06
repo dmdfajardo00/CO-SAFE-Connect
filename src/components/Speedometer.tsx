@@ -17,6 +17,9 @@ const Speedometer: React.FC<SpeedometerProps> = ({
   criticalThreshold,
   unit = 'ppm'
 }) => {
+  // Check if dark mode is enabled
+  const isDarkMode = document.documentElement.classList.contains('dark')
+  
   // Determine status based on value
   const getStatus = () => {
     if (value < warningThreshold) return { text: 'Safe', color: '#10B981' }
@@ -25,6 +28,9 @@ const Speedometer: React.FC<SpeedometerProps> = ({
   }
 
   const status = getStatus()
+  
+  // Use lighter color for needle in dark mode for better contrast
+  const needleColor = isDarkMode ? '#94a3b8' : '#1F2937'
 
   return (
     <div className="flex flex-col items-center w-full max-w-sm mx-auto space-y-0">
@@ -55,7 +61,7 @@ const Speedometer: React.FC<SpeedometerProps> = ({
             ]
           }}
           pointer={{
-            color: '#1F2937',
+            color: needleColor,
             length: 0.80,
             width: 15,
             elastic: true,
