@@ -16,6 +16,7 @@ interface AppStore extends AppState {
   updateReading: (reading: COReading) => void
   addAlert: (alert: Omit<COAlert, 'id' | 'timestamp'>) => void
   acknowledgeAlert: (alertId: string) => void
+  clearAlerts: () => void
   updateDeviceStatus: (status: Partial<DeviceStatus>) => void
   updateSettings: (settings: Partial<AppSettings>) => void
   setActiveTab: (tab: TabName) => void
@@ -156,6 +157,10 @@ export const useAppStore = create<AppStore>()(
             alert.id === alertId ? { ...alert, acknowledged: true } : alert
           ),
         }))
+      },
+
+      clearAlerts: () => {
+        set({ alerts: [], activeAlerts: [] })
       },
 
       updateDeviceStatus: (status: Partial<DeviceStatus>) => {

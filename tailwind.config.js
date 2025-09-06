@@ -1,36 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
   ],
-  prefix: "",
+  darkMode: 'class',
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
     extend: {
       colors: {
-        // CO-SAFE Brand Colors from layout.html
-        'co-blue': '#1976D2',
-        'co-green': '#00C851', 
-        'co-amber': '#FF8800',
-        'co-red': '#FF3547',
-        'co-ink': '#0b0f14',
-        'co-bg': '#ffffff',
-        'co-card': '#f6f8fb',
-        'co-muted': '#6b7a90',
-        'co-border': '#e3e8f0',
-        'co-focus': '#5aa9ff',
-        
-        // shadcn/ui colors
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -64,42 +41,22 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        safe: '#10B981',
+        caution: '#F59E0B',
+        danger: '#EF4444'
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-        "fade-in": {
-          "0%": { opacity: "0", transform: "translate(-50%, 8px)" },
-          "10%": { opacity: "1", transform: "translate(-50%, 0)" },
-          "90%": { opacity: "1" },
-          "100%": { opacity: "0" },
-        },
+      boxShadow: {
+        soft: '0 8px 30px rgba(0,0,0,0.08)'
       },
       animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 3s ease",
-      },
-      minHeight: {
-        'touch': '48px',
-        'touch-lg': '56px',
-      },
-      spacing: {
-        'touch': '48px',
-        'touch-lg': '56px',
+        'pulse-soft': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 }
