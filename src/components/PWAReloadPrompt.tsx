@@ -1,14 +1,21 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Icon } from '@iconify/react'
 import { Button } from './ui/button'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 
 function PWAReloadPrompt() {
-  const [offlineReady, setOfflineReady] = useState(false)
-  const [needRefresh, setNeedRefresh] = useState(false)
-  
-  const updateServiceWorker = () => {
-    window.location.reload()
-  }
+  const {
+    offlineReady: [offlineReady, setOfflineReady],
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('[PWA] Service Worker registered:', r)
+    },
+    onRegisterError(error) {
+      console.error('[PWA] Service Worker registration error:', error)
+    },
+  })
 
   const close = () => {
     setOfflineReady(false)

@@ -64,29 +64,25 @@ function App() {
     <div className="mx-auto max-w-md min-h-screen flex flex-col bg-white dark:bg-gray-900 shadow-soft">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <motion.div 
-            className="w-8 h-8 grid place-items-center rounded-xl bg-primary/10 text-primary"
+            className="w-10 h-10 grid place-items-center rounded-2xl bg-primary/10 text-primary"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Icon icon="mdi:gas-cylinder" className="w-5 h-5" />
+            <Icon icon="mdi:gas-cylinder" className="w-6 h-6" />
           </motion.div>
           <div className="leading-tight" ref={sourceSelectorRef}>
             <button 
               onClick={() => setShowSourceSelector(!showSourceSelector)}
               className="text-left hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors relative"
             >
-              <p className="text-sm font-medium flex items-center gap-1">
+              <p className="text-base font-semibold flex items-center gap-2">
                 CO-SAFE — <span className="text-primary flex items-center gap-1">
                   <Icon icon="mdi:home" className="w-4 h-4" />
                   {device.name || 'Monitor'}
                   <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showSourceSelector ? 'rotate-180' : ''}`} />
                 </span>
-              </p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <Icon icon="mdi:shield-check" className="w-3.5 h-3.5" />
-                {currentReading ? `${currentReading.value} ppm` : 'Monitoring'}
               </p>
             </button>
             
