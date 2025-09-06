@@ -1,5 +1,4 @@
 import React from 'react'
-import { Card } from '@/components/ui/card'
 import { AlertCard } from '@/components/alerts/AlertCard'
 import { useAppStore } from '@/store/useAppStore'
 

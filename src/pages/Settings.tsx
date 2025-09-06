@@ -107,8 +107,7 @@ const Settings: React.FC = () => {
               <span className="text-sm font-medium">{device.name || 'Not set'}</span>
               <Icon 
                 icon="mdi:car" 
-                className="w-4 h-4 text-primary" 
-                title="Vehicle Monitor"
+                className="w-4 h-4 text-primary"
               />
             </div>
           </div>

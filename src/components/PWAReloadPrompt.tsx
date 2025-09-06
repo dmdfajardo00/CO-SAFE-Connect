@@ -1,4 +1,3 @@
-import React from 'react'
 import { Icon } from '@iconify/react'
 import { Button } from './ui/button'
 import { useRegisterSW } from 'virtual:pwa-register/react'

@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from './store/useAppStore'
-import { Card } from './components/ui/card'
 import { Button } from './components/ui/button'
 import Dashboard from './pages/Dashboard'
 import Alerts from './pages/Alerts'
@@ -22,7 +21,6 @@ function App() {
     settings,
     alerts,
     device,
-    currentReading,
     updateSettings
   } = useAppStore()
 

@@ -1,5 +1,4 @@
 import React from 'react'
-import { cn } from '@/lib/utils'
 import { TopBar } from './TopBar'
 import { TabBar } from './TabBar'
 import { AlertBanner } from '../alerts/AlertBanner'
@@ -20,7 +19,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   activeTab,
   onTabChange,
-  className,
   showAlertBanner = false,
 }) => {
   return (

@@ -1,5 +1,4 @@
 import React from 'react'
-import { cn } from '@/lib/utils'
 import { type TabName } from '@/types'
 import { Home, AlertTriangle, BarChart3, Settings } from 'lucide-react'
 
@@ -18,8 +17,7 @@ const tabs = [
 
 export const TabBar: React.FC<TabBarProps> = ({ 
   activeTab, 
-  onTabChange, 
-  className 
+  onTabChange
 }) => {
   return (
     <nav 

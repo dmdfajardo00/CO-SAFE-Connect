@@ -1,6 +1,4 @@
 import React from 'react'
-import { cn } from '@/lib/utils'
-import { Card } from '../ui/card'
 import { type COAlert } from '@/types'
 
 interface AlertCardProps {
@@ -8,7 +6,7 @@ interface AlertCardProps {
   className?: string
 }
 
-export const AlertCard: React.FC<AlertCardProps> = ({ alert, className }) => {
+export const AlertCard: React.FC<AlertCardProps> = ({ alert }) => {
   const getBadgeColor = () => {
     switch (alert.level) {
       case 'critical':
