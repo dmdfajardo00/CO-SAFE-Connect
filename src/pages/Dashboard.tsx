@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
       connected: true,
       battery: Math.round(80 + Math.random() * 20),
       deviceId: 'CO-SAFE-001',
-      name: 'Living Room Monitor'
+      name: '2024 Honda Civic'
     })
     
     addAlert({

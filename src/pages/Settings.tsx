@@ -5,13 +5,25 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { useAppStore } from '@/store/useAppStore'
 
 const Settings: React.FC = () => {
-  const { settings, updateSettings, device } = useAppStore()
+  const { settings, updateSettings, device, updateDeviceStatus } = useAppStore()
   const [warningThreshold, setWarningThreshold] = useState(settings.thresholds.warning)
   const [criticalThreshold, setCriticalThreshold] = useState(settings.thresholds.critical)
   const [emergencyContact, setEmergencyContact] = useState(settings.emergencyContact)
+  const [deviceName, setDeviceName] = useState(device.name || '')
+  const [isEditingDevice, setIsEditingDevice] = useState(false)
 
   const handleSaveThresholds = () => {
     updateSettings({
@@ -26,14 +38,63 @@ const Settings: React.FC = () => {
     updateSettings({ emergencyContact })
   }
 
+  const handleSaveDeviceName = () => {
+    updateDeviceStatus({ name: deviceName })
+    setIsEditingDevice(false)
+  }
+
+  const openEditDialog = () => {
+    setDeviceName(device.name || '')
+    setIsEditingDevice(true)
+  }
+
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold">Settings</h2>
 
       {/* Device Info */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Device Information</CardTitle>
+          <Dialog open={isEditingDevice} onOpenChange={setIsEditingDevice}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={openEditDialog}
+                className="h-8 px-2"
+              >
+                <Icon icon="mdi:pencil" className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Device Name</DialogTitle>
+                <DialogDescription>
+                  Change the display name for your CO-SAFE monitor device.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="device-name">Device Name</Label>
+                  <Input
+                    id="device-name"
+                    placeholder="Enter device name (e.g., 2024 Tesla Model 3)"
+                    value={deviceName}
+                    onChange={(e) => setDeviceName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2">
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleSaveDeviceName}>
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
@@ -42,7 +103,14 @@ const Settings: React.FC = () => {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Name</span>
-            <span className="text-sm font-medium">{device.name || 'Not set'}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{device.name || 'Not set'}</span>
+              <Icon 
+                icon="mdi:car" 
+                className="w-4 h-4 text-primary" 
+                title="Vehicle Monitor"
+              />
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Battery</span>
