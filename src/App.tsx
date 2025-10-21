@@ -76,7 +76,7 @@ function App() {
               className="text-left hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors relative"
             >
               <p className="text-base font-semibold flex items-center gap-2">
-                CO-SAFE — <span className="text-primary flex items-center gap-1">
+                CO-SAFE <span className="text-primary flex items-center gap-1 whitespace-nowrap">
                   <Icon icon="mdi:car" className="w-4 h-4" />
                   {device.name || 'Monitor'}
                   <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showSourceSelector ? 'rotate-180' : ''}`} />
@@ -125,76 +125,11 @@ function App() {
             className="rounded-xl"
           >
             <Icon 
-              icon={settings.darkMode ? 'mdi:weather-sunny' : 'mdi:weather-night'} 
+              icon={settings.darkMode ? 'solar:sun-bold' : 'solar:moon-bold'} 
               className="w-5 h-5" 
             />
           </Button>
-          
-          {/* Notification Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-              className="relative rounded-xl"
-            >
-              <Icon icon="mdi:bell" className="w-5 h-5" />
-              {activeAlerts.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-danger rounded-full animate-pulse" />
-              )}
-            </Button>
-            
-            <AnimatePresence>
-              {showNotificationDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg z-50"
-                >
-                  <div className="p-3 border-b border-gray-200 dark:border-gray-800">
-                    <h3 className="text-sm font-semibold">Notifications</h3>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {activeAlerts.length > 0 ? (
-                      activeAlerts.slice(0, 5).map(alert => (
-                        <div key={alert.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-                          <div className="flex items-start gap-3">
-                            <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                              alert.level === 'critical' || alert.level === 'emergency' ? 'bg-danger' :
-                              alert.level === 'warning' ? 'bg-caution' : 'bg-safe'
-                            }`}></div>
-                            <div className="flex-1">
-                              <p className={`text-xs font-medium ${
-                                alert.level === 'critical' || alert.level === 'emergency' ? 'text-danger' :
-                                alert.level === 'warning' ? 'text-caution' : 'text-safe'
-                              }`}>{alert.title}</p>
-                              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{alert.message}</p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {new Date(alert.timestamp).toLocaleTimeString()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        No new notifications
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-                    <button 
-                      onClick={() => { setShowNotificationDropdown(false); setActiveTab('alerts'); }}
-                      className="text-xs text-primary hover:text-primary/80 font-medium"
-                    >
-                      View All Notifications
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+
         </div>
       </header>
 
@@ -209,7 +144,7 @@ function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur z-40">
+      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl z-50">
         <div className="grid grid-cols-4 text-center">
           {[
             { id: 'home', icon: 'mdi:home', label: 'Home' },
@@ -220,13 +155,15 @@ function App() {
             <motion.button
               key={tab.id}
               onClick={() => handleNavigation(tab.id)}
-              className={`py-3 flex flex-col items-center gap-1 ${
-                activeTab === tab.id ? 'text-primary' : 'text-gray-500'
+              className={`py-3 flex flex-col items-center gap-1 transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'text-black dark:text-white'
+                  : 'text-gray-400 dark:text-gray-600'
               }`}
               whileTap={{ scale: 0.95 }}
             >
               <Icon icon={tab.icon} className="w-6 h-6" />
-              <span className="text-[11px]">{tab.label}</span>
+              <span className="text-[11px] font-medium">{tab.label}</span>
             </motion.button>
           ))}
         </div>
