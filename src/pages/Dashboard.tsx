@@ -4,7 +4,7 @@ import { Icon } from '@iconify/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppStore, useSimulation } from '@/store/useAppStore'
-import Speedometer from '@/components/Speedometer'
+import Speedometer from '@/components/charts/Speedometer'
 
 const Dashboard: React.FC = () => {
   const {

@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Alerts from './pages/Alerts'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
-import PWAReloadPrompt from './components/PWAReloadPrompt'
+import PWAReloadPrompt from './components/ui/PWAReloadPrompt'
 import './index.css'
 
 function App() {
@@ -59,30 +59,31 @@ function App() {
   const activeAlerts = alerts.filter(a => !a.acknowledged)
 
   return (
-    <div className="mx-auto max-w-md min-h-screen flex flex-col bg-white dark:bg-gray-900 shadow-soft">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-3">
-          <motion.div 
-            className="w-10 h-10 grid place-items-center rounded-2xl bg-primary/10 text-primary"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Icon icon="mdi:gas-cylinder" className="w-6 h-6" />
-          </motion.div>
-          <div className="leading-tight" ref={sourceSelectorRef}>
-            <button 
-              onClick={() => setShowSourceSelector(!showSourceSelector)}
-              className="text-left hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors relative"
+      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <div className="mx-auto w-full max-w-md px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <motion.div 
+              className="w-10 h-10 grid place-items-center rounded-2xl bg-primary/10 text-primary"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <p className="text-base font-semibold flex items-center gap-2">
-                CO-SAFE <span className="text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Icon icon="mdi:car" className="w-4 h-4" />
-                  {device.name || 'Monitor'}
-                  <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showSourceSelector ? 'rotate-180' : ''}`} />
-                </span>
-              </p>
-            </button>
+              <Icon icon="mdi:gas-cylinder" className="w-6 h-6" />
+            </motion.div>
+            <div className="leading-tight" ref={sourceSelectorRef}>
+              <button 
+                onClick={() => setShowSourceSelector(!showSourceSelector)}
+                className="text-left hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors relative"
+              >
+                <p className="text-base font-semibold flex items-center gap-2">
+                  CO-SAFE <span className="text-primary flex items-center gap-1 whitespace-nowrap">
+                    <Icon icon="mdi:car" className="w-4 h-4" />
+                    {device.name || 'Monitor'}
+                    <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showSourceSelector ? 'rotate-180' : ''}`} />
+                  </span>
+                </p>
+              </button>
             
             <AnimatePresence>
               {showSourceSelector && (
@@ -115,37 +116,49 @@ function App() {
               )}
             </AnimatePresence>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="rounded-xl"
-          >
-            <Icon 
-              icon={settings.darkMode ? 'solar:sun-bold' : 'solar:moon-bold'} 
-              className="w-5 h-5" 
-            />
-          </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="rounded-xl"
+            >
+              <Icon 
+                icon={settings.darkMode ? 'solar:sun-bold' : 'solar:moon-bold'} 
+                className="w-5 h-5" 
+              />
+            </Button>
 
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="relative flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors">
         <AnimatePresence mode="wait">
-          {activeTab === 'home' && <Dashboard key="dashboard" />}
+          {activeTab === 'home' && (
+            <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
+              <Dashboard key="dashboard" />
+            </div>
+          )}
           {activeTab === 'alerts' && <Alerts key="alerts" />}
-          {activeTab === 'analytics' && <Analytics key="analytics" />}
-          {activeTab === 'settings' && <Settings key="settings" />}
+          {activeTab === 'analytics' && (
+            <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
+              <Analytics key="analytics" />
+            </div>
+          )}
+          {activeTab === 'settings' && (
+            <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
+              <Settings key="settings" />
+            </div>
+          )}
         </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl z-50">
-        <div className="grid grid-cols-4 text-center">
+      <nav className="fixed bottom-0 inset-x-0 border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-2xl z-50 transition-colors">
+        <div className="mx-auto w-full max-w-md grid grid-cols-4 text-center">
           {[
             { id: 'home', icon: 'tabler:home', label: 'Home' },
             { id: 'alerts', icon: 'solar:danger-triangle-linear', label: 'Alerts' },

@@ -138,11 +138,11 @@ const Analytics: React.FC = () => {
                     tick={{ fontSize: 10 }}
                     stroke="#9ca3af"
                   />
-                  <YAxis 
+                  <YAxis
                     tick={{ fontSize: 10 }}
                     stroke="#9ca3af"
                   />
-                  <Tooltip />
+                  <Tooltip formatter={(value: any) => [`${Number(value).toFixed(2)} ppm`, 'CO Level']} />
                   <Area
                     type="monotone"
                     dataKey="value"
@@ -177,7 +177,7 @@ const Analytics: React.FC = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value: any) => [`${Number(value).toFixed(2)}%`, 'Readings']} />
                 </RePieChart>
               </ResponsiveContainer>
               

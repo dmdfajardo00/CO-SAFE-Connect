@@ -112,8 +112,8 @@ export const useAppStore = create<AppStore>()(
               id: `alert_${Date.now()}`,
               timestamp: reading.timestamp,
               level: alertLevel,
-              title: alertLevel === 'critical' ? 'Critical CO Level' : 'Elevated CO Level',
-              message: `${reading.value.toFixed(0)} ppm exceeded ${alertLevel} threshold`,
+              title: alertLevel === 'critical' ? 'Critical CO spike' : 'CO level elevated',
+              message: `${reading.value.toFixed(0)} ppm above the ${alertLevel} limit`,
               acknowledged: false,
               deviceId: state.device.deviceId,
             }
