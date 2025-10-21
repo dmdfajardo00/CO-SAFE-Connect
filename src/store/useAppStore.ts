@@ -1,17 +1,22 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { 
-  type AppState, 
-  type COReading, 
-  type COAlert, 
+import {
+  type AppState,
+  type COReading,
+  type COAlert,
   type AppSettings,
   type DeviceStatus,
   type HistoryDataPoint,
   type TabName,
-  CO_THRESHOLDS 
+  CO_THRESHOLDS
 } from '@/types'
+import type { User } from '@/lib/supabase'
 
 interface AppStore extends AppState {
+  // User state
+  currentUser: User | null
+  isAuthenticated: boolean
+
   // Actions
   updateReading: (reading: COReading) => void
   addAlert: (alert: Omit<COAlert, 'id' | 'timestamp'>) => void
@@ -25,7 +30,9 @@ interface AppStore extends AppState {
   setEmergencyBanner: (visible: boolean) => void
   muteAlarms: (muted: boolean) => void
   exportData: () => void
-  
+  setUser: (user: User | null) => void
+  logout: () => void
+
   // Computed getters
   getCurrentStatus: () => 'safe' | 'warning' | 'critical'
   getActiveAlertsCount: () => number
@@ -58,6 +65,8 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
       // Initial state
+      currentUser: null,
+      isAuthenticated: false,
       device: defaultDeviceStatus,
       currentReading: null,
       history: [],
@@ -239,11 +248,30 @@ export const useAppStore = create<AppStore>()(
       getLatestReading: () => {
         return get().currentReading
       },
+
+      setUser: (user: User | null) => {
+        set({
+          currentUser: user,
+          isAuthenticated: user !== null
+        })
+      },
+
+      logout: () => {
+        set({
+          currentUser: null,
+          isAuthenticated: false,
+          history: [],
+          alerts: [],
+          activeAlerts: []
+        })
+      },
     }),
     {
       name: 'co-safe-storage',
       partialize: (state) => ({
         // Only persist essential data
+        currentUser: state.currentUser,
+        isAuthenticated: state.isAuthenticated,
         history: state.history.slice(-1000), // Keep last 1000 points
         alerts: state.alerts.slice(0, 100), // Keep last 100 alerts
         settings: state.settings,

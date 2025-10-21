@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Alerts from './pages/Alerts'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import Welcome from './pages/Welcome'
+import WelcomeOptions from './pages/WelcomeOptions'
 import PWAReloadPrompt from './components/ui/PWAReloadPrompt'
 import './index.css'
 
@@ -16,12 +18,13 @@ function App() {
   const [showSourceSelector, setShowSourceSelector] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const sourceSelectorRef = useRef<HTMLDivElement>(null)
-  
-  const { 
+
+  const {
     settings,
     alerts,
     device,
-    updateSettings
+    updateSettings,
+    isAuthenticated
   } = useAppStore()
 
   useEffect(() => {
@@ -57,6 +60,11 @@ function App() {
   }
 
   const activeAlerts = alerts.filter(a => !a.acknowledged)
+
+  // Show Welcome page if not authenticated
+  if (!isAuthenticated) {
+    return <Welcome />
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
