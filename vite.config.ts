@@ -5,6 +5,11 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __DEV__: JSON.stringify(process.env.NODE_ENV !== 'production'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    global: 'globalThis',
+  },
   plugins: [
     react(),
     VitePWA({
@@ -103,7 +108,20 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'react-native': 'react-native-web',
+      'react-native-svg': 'react-native-svg-web',
+      'react-native/Libraries/Utilities/codegenNativeComponent': path.resolve(
+        __dirname,
+        './src/polyfills/codegenNativeComponent.ts'
+      ),
     },
+    extensions: ['.web.js', '.web.ts', '.web.tsx', '.js', '.jsx', '.ts', '.tsx', '.json']
+  },
+  optimizeDeps: {
+    include: ['react-native-web', 'react-native-svg-web', '@gluestack-ui/themed', '@gluestack-style/react'],
+    esbuildOptions: {
+      resolveExtensions: ['.web.js', '.web.ts', '.web.tsx', '.js', '.jsx', '.ts', '.tsx', '.json'],
+    }
   },
   build: {
     target: 'esnext',

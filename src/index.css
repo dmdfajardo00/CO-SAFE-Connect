@@ -69,3 +69,175 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Gluestack UI styling fixes - The Emotion styles aren't rendering, add manual overrides */
+@layer components {
+  /* Ensure all Gluestack views have proper display */
+  [data-component-config*="Box"],
+  [data-component-config*="VStack"],
+  [data-component-config*="HStack"],
+  [data-component-config*="Card"],
+  [data-component-config*="ScrollView"] {
+    box-sizing: border-box;
+  }
+
+  /* Fix VStack and HStack flex direction */
+  [data-component-config*="VStack"] {
+    flex-direction: column !important;
+    gap: 0.5rem;
+  }
+
+  [data-component-config*="HStack"] {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem;
+  }
+
+  /* Card styling */
+  [data-component-config*="Card"] {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    background-color: white;
+  }
+
+  .dark [data-component-config*="Card"] {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+
+  /* Progress bars */
+  [data-component-config*="Progress"] {
+    width: 100%;
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .dark [data-component-config*="Progress"] {
+    background-color: #374151;
+  }
+
+  [data-component-config*="ProgressFilledTrack"] {
+    height: 100%;
+    background-color: #1976D2;
+    transition: width 0.3s;
+  }
+
+  /* Badges */
+  [data-component-config*="Badge"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.25rem 0.75rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+  }
+
+  /* Divider */
+  [data-component-config*="Divider"] {
+    width: 100%;
+    height: 1px;
+    background-color: #e5e7eb;
+    margin: 0.75rem 0;
+  }
+
+  .dark [data-component-config*="Divider"] {
+    background-color: #374151;
+  }
+
+  /* Input styling */
+  [data-component-config*="Input"] {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    width: 100%;
+    background-color: white;
+  }
+
+  .dark [data-component-config*="Input"] {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: white;
+  }
+
+  /* Button styling */
+  [data-component-config*="Button"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.5rem !important;
+    padding: 0.625rem 1.25rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+  }
+
+  [data-component-config*="Button"][data-variant="solid"] {
+    background-color: #1976D2 !important;
+    color: white !important;
+  }
+
+  [data-component-config*="Button"][data-variant="outline"] {
+    border: 1px solid #e5e7eb !important;
+    background-color: transparent !important;
+  }
+
+  /* Switch styling */
+  [data-component-config*="Switch"] {
+    position: relative !important;
+    width: 2.75rem !important;
+    height: 1.5rem !important;
+    border-radius: 9999px !important;
+    background-color: #d1d5db !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s !important;
+  }
+
+  [data-component-config*="Switch"][aria-checked="true"],
+  [data-component-config*="Switch"][data-checked="true"] {
+    background-color: #1976D2 !important;
+  }
+
+  /* Accordion */
+  [data-component-config*="AccordionItem"] {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.5rem 0;
+  }
+
+  .dark [data-component-config*="AccordionItem"] {
+    border-color: #374151;
+  }
+
+  [data-component-config*="AccordionTrigger"] {
+    cursor: pointer;
+    padding: 0.75rem 0;
+    font-weight: 600;
+  }
+
+  [data-component-config*="AccordionContent"] {
+    padding: 1rem 0;
+  }
+
+  /* Alert styling */
+  [data-component-config*="Alert"] {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid;
+  }
+
+  [data-component-config*="Alert"][data-variant="accent"][data-action="error"],
+  [data-component-config*="Alert"][data-action="error"] {
+    background-color: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+  }
+
+  [data-component-config*="Alert"][data-variant="accent"][data-action="warning"],
+  [data-component-config*="Alert"][data-action="warning"] {
+    background-color: #fefce8;
+    border-color: #fde047;
+    color: #854d0e;
+  }
+}

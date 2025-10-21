@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home, Activity, AlertTriangle, Settings, Phone } from 'lucide-react'
+import { Icon } from '@iconify/react'
+import { Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type TabName } from '@/types'
 import { useAppStore } from '@/store/useAppStore'
@@ -11,11 +12,11 @@ interface MobileLayoutProps {
   onTabChange: (tab: TabName) => void
 }
 
-const tabIcons: Record<TabName, React.ComponentType<{ className?: string }>> = {
-  dashboard: Home,
-  alerts: AlertTriangle,
-  analytics: Activity,
-  settings: Settings,
+const tabIcons: Record<TabName, string> = {
+  dashboard: 'tabler:home',
+  alerts: 'solar:danger-triangle-linear',
+  analytics: 'solar:chart-square-linear',
+  settings: 'solar:settings-minimalistic-linear',
 }
 
 const tabLabels: Record<TabName, string> = {
@@ -90,7 +91,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
       <div className="ios-backdrop fixed bottom-0 left-0 right-0 border-t border-border/50 pb-safe">
         <nav className="grid grid-cols-4 px-2">
           {(Object.keys(tabIcons) as TabName[]).map((tab) => {
-            const Icon = tabIcons[tab]
+            const iconName = tabIcons[tab]
             const isActive = activeTab === tab
             const hasAlert = tab === 'alerts' && hasActiveAlerts
 
@@ -110,7 +111,8 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
                   className="relative"
                 >
-                  <Icon 
+                  <Icon
+                    icon={iconName}
                     className={cn(
                       "w-6 h-6 transition-colors",
                       isActive 

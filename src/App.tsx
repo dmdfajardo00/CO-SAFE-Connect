@@ -147,10 +147,10 @@ function App() {
       <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-md border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl z-50">
         <div className="grid grid-cols-4 text-center">
           {[
-            { id: 'home', icon: 'mdi:home', label: 'Home' },
-            { id: 'alerts', icon: 'mdi:bell', label: 'Alerts' },
-            { id: 'analytics', icon: 'mdi:chart-line', label: 'Analytics' },
-            { id: 'settings', icon: 'mdi:cog', label: 'Settings' }
+            { id: 'home', icon: 'tabler:home', label: 'Home' },
+            { id: 'alerts', icon: 'solar:danger-triangle-linear', label: 'Alerts' },
+            { id: 'analytics', icon: 'solar:chart-square-linear', label: 'Analytics' },
+            { id: 'settings', icon: 'solar:settings-minimalistic-linear', label: 'Settings' }
           ].map(tab => (
             <motion.button
               key={tab.id}
