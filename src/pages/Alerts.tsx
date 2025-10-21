@@ -65,7 +65,7 @@ const getSeverityMeta = (level: string): SeverityMeta => {
 }
 
 const Alerts: React.FC = () => {
-  const { alerts, acknowledgeAlert, clearAlerts, settings } = useAppStore()
+  const { alerts, acknowledgeAlert, clearAlerts } = useAppStore()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: '', description: '' })

@@ -280,7 +280,7 @@ const Welcome: React.FC = () => {
                   <Button
                     size="touch-lg"
                     className="w-full font-semibold"
-                    onClick={() => alert('Navigate to dashboard (will be functional later)')}
+                    onClick={() => window.location.reload()}
                   >
                     Go to Dashboard
                     <Icon icon="mdi:arrow-right" className="ml-2 w-5 h-5" />

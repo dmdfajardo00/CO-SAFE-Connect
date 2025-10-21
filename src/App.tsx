@@ -8,20 +8,16 @@ import Alerts from './pages/Alerts'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Welcome from './pages/Welcome'
-import WelcomeOptions from './pages/WelcomeOptions'
 import PWAReloadPrompt from './components/ui/PWAReloadPrompt'
 import './index.css'
 
 function App() {
   const [activeTab, setActiveTab] = useState('home')
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false)
   const [showSourceSelector, setShowSourceSelector] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const sourceSelectorRef = useRef<HTMLDivElement>(null)
 
   const {
     settings,
-    alerts,
     device,
     updateSettings,
     isAuthenticated
@@ -33,9 +29,6 @@ function App() {
 
     // Handle click outside dropdowns
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowNotificationDropdown(false)
-      }
       if (sourceSelectorRef.current && !sourceSelectorRef.current.contains(event.target as Node)) {
         setShowSourceSelector(false)
       }
@@ -58,8 +51,6 @@ function App() {
   const toggleTheme = () => {
     updateSettings({ darkMode: !settings.darkMode })
   }
-
-  const activeAlerts = alerts.filter(a => !a.acknowledged)
 
   // Show Welcome page if not authenticated
   if (!isAuthenticated) {
