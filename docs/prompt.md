@@ -3,4 +3,9 @@
  as for the steps, do the bottom navigator first, then as for the other components we'll proceed one by one.
 
 
- Remove 
+
+
+
+I need you to make the alerts page simpler but still modern, remove awaiting response text. fix the spacing and hierarchy, remove these texts: "active and archive, because we already have active and history tabs.
+
+I also need you to change the icon set of home, alerts, analytics and settings in the bottom navigation, use solar icon pack
