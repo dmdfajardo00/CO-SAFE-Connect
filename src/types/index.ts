@@ -4,6 +4,7 @@ export interface COReading {
   timestamp: number
   value: number // ppm
   status: 'safe' | 'warning' | 'critical'
+  mosfetStatus?: boolean // MOSFET alarm activation state
 }
 
 export interface DeviceStatus {
@@ -151,10 +152,47 @@ export type COSafeAction =
   | { type: 'SET_EMERGENCY_BANNER'; payload: boolean }
   | { type: 'MUTE_ALARMS'; payload: boolean }
 
+// Session Types
+export interface Session {
+  session_id: string
+  device_id: string
+  user_id: string | null
+  started_at: string
+  ended_at: string | null
+  notes: string | null
+}
+
+export interface SessionWithDevice extends Session {
+  device_name?: string
+  vehicle_model?: string
+}
+
+export interface SessionStats {
+  avg_co_level: number
+  max_co_level: number
+  min_co_level: number
+  safe_count: number
+  warning_count: number
+  critical_count: number
+  mosfet_alarm_count: number
+  total_readings: number
+  duration_minutes: number
+}
+
+export interface SessionReading {
+  id: number
+  session_id: string
+  device_id: string
+  co_level: number
+  status: 'safe' | 'warning' | 'critical' | null
+  mosfet_status: boolean | null
+  created_at: string
+}
+
 // Utility Types
 export type COStatus = 'safe' | 'warning' | 'critical'
 export type AlertLevel = 'info' | 'warning' | 'critical' | 'emergency'
-export type TabName = 'dashboard' | 'alerts' | 'analytics' | 'settings'
+export type TabName = 'dashboard' | 'alerts' | 'analytics' | 'settings' | 'sessions'
 
 // Constants
 export const CO_THRESHOLDS = {

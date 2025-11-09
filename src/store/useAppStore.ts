@@ -11,11 +11,18 @@ import {
   CO_THRESHOLDS
 } from '@/types'
 import type { User } from '@/lib/supabase'
+import { getLatestReadings, subscribeToReadings, type Database } from '@/services/supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface AppStore extends AppState {
   // User state
   currentUser: User | null
   isAuthenticated: boolean
+
+  // Supabase state
+  realtimeChannel: RealtimeChannel | null
+  isLoadingFromSupabase: boolean
+  lastSupabaseFetch: number | null
 
   // Actions
   updateReading: (reading: COReading) => void
@@ -32,6 +39,11 @@ interface AppStore extends AppState {
   exportData: () => void
   setUser: (user: User | null) => void
   logout: () => void
+
+  // Supabase actions
+  fetchFromSupabase: (deviceId: string, limit?: number) => Promise<void>
+  subscribeToRealtimeUpdates: (deviceId: string) => void
+  unsubscribeFromRealtime: () => void
 
   // Computed getters
   getCurrentStatus: () => 'safe' | 'warning' | 'critical'
@@ -83,6 +95,11 @@ export const useAppStore = create<AppStore>()(
       isSimulating: false,
       isOnline: navigator.onLine,
       lastSyncTime: null,
+
+      // Supabase state
+      realtimeChannel: null,
+      isLoadingFromSupabase: false,
+      lastSupabaseFetch: null,
 
       // Actions
       updateReading: (reading: COReading) => {
@@ -265,6 +282,78 @@ export const useAppStore = create<AppStore>()(
           activeAlerts: []
         })
       },
+
+      // Supabase actions
+      fetchFromSupabase: async (deviceId: string, limit = 1000) => {
+        set({ isLoadingFromSupabase: true })
+
+        try {
+          const readings = await getLatestReadings(deviceId, limit)
+
+          if (readings && readings.length > 0) {
+            // Convert Supabase readings to app format
+            const historyPoints: HistoryDataPoint[] = readings.map(r => ({
+              timestamp: new Date(r.created_at!).getTime(),
+              value: r.co_level,
+            })).reverse() // Reverse to get chronological order
+
+            // Get the latest reading
+            const latestReading = readings[0]
+            const currentReading: COReading = {
+              timestamp: new Date(latestReading.created_at!).getTime(),
+              value: latestReading.co_level,
+              status: latestReading.status || 'safe',
+              mosfetStatus: latestReading.mosfet_status || false,
+            }
+
+            set({
+              history: historyPoints,
+              currentReading,
+              device: {
+                ...get().device,
+                connected: true,
+                lastUpdate: new Date(latestReading.created_at!).getTime(),
+                deviceId,
+              },
+              lastSupabaseFetch: Date.now(),
+              isLoadingFromSupabase: false,
+            })
+          } else {
+            set({ isLoadingFromSupabase: false })
+          }
+        } catch (error) {
+          console.error('Failed to fetch from Supabase:', error)
+          set({ isLoadingFromSupabase: false })
+        }
+      },
+
+      subscribeToRealtimeUpdates: (deviceId: string) => {
+        // Unsubscribe from existing channel first
+        get().unsubscribeFromRealtime()
+
+        const channel = subscribeToReadings(deviceId, (reading) => {
+          // Convert Supabase reading to app format
+          const newReading: COReading = {
+            timestamp: new Date(reading.created_at!).getTime(),
+            value: reading.co_level,
+            status: reading.status || 'safe',
+            mosfetStatus: reading.mosfet_status || false,
+          }
+
+          // Update the store with the new reading
+          get().updateReading(newReading)
+        })
+
+        set({ realtimeChannel: channel })
+      },
+
+      unsubscribeFromRealtime: () => {
+        const channel = get().realtimeChannel
+        if (channel) {
+          channel.unsubscribe()
+          set({ realtimeChannel: null })
+        }
+      },
     }),
     {
       name: 'co-safe-storage',
@@ -285,48 +374,79 @@ export const useAppStore = create<AppStore>()(
   )
 )
 
+// Add React import
+import React from 'react'
+
 // Simulation hook for generating demo data
 export const useSimulation = () => {
   const store = useAppStore()
-  
+
   const startSimulation = React.useCallback(() => {
     if (store.isSimulating) return
-    
+
     store.toggleSimulation()
     let currentValue = 10 + Math.random() * 10 // Starting baseline
-    
+
     const interval = setInterval(() => {
       // Simple stochastic process with occasional spikes
       const spike = Math.random() < 0.04 ? (20 + Math.random() * 50) : 0
       const drift = (Math.random() - 0.5) * 3
       currentValue = Math.max(0, Math.min(100, currentValue + drift + spike))
-      
+
       const reading: COReading = {
         timestamp: Date.now(),
         value: currentValue,
         status: currentValue >= store.settings.thresholds.critical ? 'critical' :
-               currentValue >= store.settings.thresholds.warning ? 'warning' : 'safe'
+               currentValue >= store.settings.thresholds.warning ? 'warning' : 'safe',
+        mosfetStatus: currentValue > 200, // MOSFET activates at 200 ppm
       }
-      
+
       store.updateReading(reading)
     }, 1500)
-    
+
     // Store interval reference for cleanup
     ;(window as any).__coSafeSimInterval = interval
   }, [store])
-  
+
   const stopSimulation = React.useCallback(() => {
     if (!store.isSimulating) return
-    
+
     store.toggleSimulation()
     if ((window as any).__coSafeSimInterval) {
       clearInterval((window as any).__coSafeSimInterval)
       delete (window as any).__coSafeSimInterval
     }
   }, [store])
-  
+
   return { startSimulation, stopSimulation }
 }
 
-// Add React import
-import React from 'react'
+// Supabase real-time hook for live data
+export const useSupabaseRealtime = (deviceId: string = 'CO-SAFE-001', autoFetch = true) => {
+  const fetchFromSupabase = useAppStore((state) => state.fetchFromSupabase)
+  const subscribeToRealtimeUpdates = useAppStore((state) => state.subscribeToRealtimeUpdates)
+  const unsubscribeFromRealtime = useAppStore((state) => state.unsubscribeFromRealtime)
+  const isLoadingFromSupabase = useAppStore((state) => state.isLoadingFromSupabase)
+  const lastSupabaseFetch = useAppStore((state) => state.lastSupabaseFetch)
+
+  React.useEffect(() => {
+    if (!autoFetch) return
+
+    // Fetch initial data from Supabase
+    fetchFromSupabase(deviceId).catch(console.error)
+
+    // Subscribe to real-time updates
+    subscribeToRealtimeUpdates(deviceId)
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribeFromRealtime()
+    }
+  }, [deviceId, autoFetch, fetchFromSupabase, subscribeToRealtimeUpdates, unsubscribeFromRealtime])
+
+  return {
+    isLoading: isLoadingFromSupabase,
+    lastFetch: lastSupabaseFetch,
+    refetch: () => fetchFromSupabase(deviceId),
+  }
+}
