@@ -16,6 +16,7 @@ const tabIcons: Record<TabName, string> = {
   dashboard: 'tabler:home',
   alerts: 'solar:danger-triangle-linear',
   analytics: 'solar:chart-square-linear',
+  sessions: 'mdi:history',
   settings: 'solar:settings-minimalistic-linear',
 }
 
@@ -23,6 +24,7 @@ const tabLabels: Record<TabName, string> = {
   dashboard: 'Home',
   alerts: 'Alerts',
   analytics: 'Analytics',
+  sessions: 'Sessions',
   settings: 'Settings',
 }
 

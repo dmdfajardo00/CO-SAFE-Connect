@@ -11,7 +11,7 @@ import {
   CO_THRESHOLDS
 } from '@/types'
 import type { User } from '@/lib/supabase'
-import { getLatestReadings, subscribeToReadings, type Database } from '@/services/supabase'
+import { getLatestReadings, subscribeToReadings } from '@/services/supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface AppStore extends AppState {

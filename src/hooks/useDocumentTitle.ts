@@ -17,7 +17,7 @@ import { useEffect, useRef } from 'react';
  */
 export function useDocumentTitle(title: string): void {
   // Store the original title to restore on unmount
-  const defaultTitle = useRef<string>();
+  const defaultTitle = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     // SSR safety check

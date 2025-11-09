@@ -225,3 +225,158 @@ export async function updateSessionAnalysis(sessionId: string, analysis: string)
   if (error) throw error;
   return data;
 }
+
+/**
+ * Start a monitoring session and send command to hardware
+ * Includes error recovery and constraint checking
+ */
+export async function startMonitoringSession(deviceId: string) {
+  // Check for existing active session first
+  const existingSession = await getActiveSession(deviceId);
+  if (existingSession) {
+    throw new Error('DEVICE_IN_USE: Another session is already active on this device. Please stop the existing session first.');
+  }
+
+  try {
+    // Create new session with heartbeat
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .insert({
+        device_id: deviceId,
+        started_at: new Date().toISOString(),
+        ended_at: null,
+        last_heartbeat: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (sessionError) {
+      // Handle specific error types
+      if (sessionError.code === '23505') {
+        throw new Error('DEVICE_IN_USE: Another session is already active.');
+      }
+      throw sessionError;
+    }
+
+    if (!session) throw new Error('Failed to create session');
+
+    // Send START command to hardware with retry logic
+    let commandSent = false;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error: commandError } = await supabase
+        .from('device_commands')
+        .insert({
+          device_id: deviceId,
+          command: `START_SESSION:${session.session_id}`,
+          executed: false
+        });
+
+      if (!commandError) {
+        commandSent = true;
+        break;
+      }
+
+      console.warn(`Command send attempt ${attempt + 1} failed:`, commandError);
+
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+      }
+    }
+
+    if (!commandSent) {
+      // Rollback session creation if command failed
+      console.error('Rolling back session due to command failure');
+      await supabase.from('sessions').delete().eq('session_id', session.session_id);
+      throw new Error('COMMAND_FAILED: Failed to send start command to hardware after 3 attempts. Please check your connection.');
+    }
+
+    console.log('✅ Monitoring session started:', session.session_id);
+    return session;
+  } catch (error: any) {
+    // Re-throw with enhanced error messages
+    if (error.message?.startsWith('DEVICE_IN_USE') || error.message?.startsWith('COMMAND_FAILED')) {
+      throw error; // Already formatted
+    }
+    throw new Error(`Failed to start session: ${error.message || 'Unknown error'}`);
+  }
+}
+
+/**
+ * Stop a monitoring session and send command to hardware
+ */
+export async function stopMonitoringSession(sessionId: string, deviceId: string) {
+  // End the session
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .update({
+      ended_at: new Date().toISOString()
+    })
+    .eq('session_id', sessionId)
+    .select()
+    .single();
+
+  if (sessionError) throw sessionError;
+
+  // Send STOP command to hardware via device_commands
+  const { error: commandError } = await supabase
+    .from('device_commands')
+    .insert({
+      device_id: deviceId,
+      command: 'STOP_SESSION',
+      executed: false
+    });
+
+  if (commandError) {
+    console.error('Failed to send stop command to hardware:', commandError);
+  }
+
+  console.log('✅ Monitoring session stopped:', sessionId);
+  return session;
+}
+
+/**
+ * Get active monitoring session for a device
+ */
+export async function getActiveSession(deviceId: string) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('device_id', deviceId)
+    .is('ended_at', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Mark a device command as executed
+ */
+export async function markCommandExecuted(commandId: number) {
+  const { error } = await supabase
+    .from('device_commands')
+    .update({
+      executed: true,
+      executed_at: new Date().toISOString()
+    })
+    .eq('id', commandId);
+
+  if (error) throw error;
+}
+
+/**
+ * Update session heartbeat to keep it alive
+ */
+export async function updateSessionHeartbeat(sessionId: string) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ last_heartbeat: new Date().toISOString() })
+    .eq('session_id', sessionId);
+
+  if (error) {
+    console.error('Failed to update heartbeat:', error);
+  }
+}

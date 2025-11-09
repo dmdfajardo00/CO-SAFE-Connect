@@ -70,7 +70,7 @@ export interface AppState {
   settings: AppSettings
   
   // UI state
-  activeTab: 'dashboard' | 'alerts' | 'analytics' | 'settings'
+  activeTab: TabName
   chartViewport: ChartViewport
   emergencyBannerVisible: boolean
   

@@ -99,12 +99,15 @@ export function formatSessionForAnalysis(
   stats: SessionStats,
   readings: Database['public']['Tables']['co_readings']['Row'][]
 ): SessionAnalysisPayload {
-  // Convert readings to simpler format
+  // Convert readings to SessionReading format
   const formattedReadings: SessionReading[] = readings.map(r => ({
-    timestamp: r.created_at!,
+    id: r.id,
+    session_id: r.session_id || '',
+    device_id: r.device_id,
     co_level: r.co_level,
     status: r.status || 'safe',
-    mosfet_status: r.mosfet_status || false
+    mosfet_status: r.mosfet_status || false,
+    created_at: r.created_at!
   }))
 
   // Smart sampling
@@ -186,18 +189,18 @@ ${payload.session.ended_at ? `- End: ${new Date(payload.session.ended_at).toLoca
 **Sample Readings:**
 First 5 readings:
 ${payload.sample_readings.first_readings.map(r =>
-  `- ${new Date(r.timestamp).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm (${r.status})`
+  `- ${new Date(r.created_at).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm (${r.status})`
 ).join('\n')}
 
 Last 5 readings:
 ${payload.sample_readings.last_readings.map(r =>
-  `- ${new Date(r.timestamp).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm (${r.status})`
+  `- ${new Date(r.created_at).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm (${r.status})`
 ).join('\n')}
 
 ${payload.sample_readings.critical_events.length > 0 ? `
 Critical Events (≥ 50 ppm):
 ${payload.sample_readings.critical_events.map(r =>
-  `- ${new Date(r.timestamp).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm${r.mosfet_status ? ' [MOSFET ACTIVATED]' : ''}`
+  `- ${new Date(r.created_at).toLocaleTimeString()}: ${r.co_level.toFixed(1)} ppm${r.mosfet_status ? ' [MOSFET ACTIVATED]' : ''}`
 ).join('\n')}
 ` : 'No critical events recorded.'}
 

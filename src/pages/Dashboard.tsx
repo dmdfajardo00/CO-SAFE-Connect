@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button'
 import { useAppStore, useSimulation, useSupabaseRealtime } from '@/store/useAppStore'
 import Speedometer from '@/components/charts/Speedometer'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { startMonitoringSession, stopMonitoringSession, getActiveSession, updateSessionHeartbeat } from '@/services/supabase'
+import type { Database } from '@/services/supabase'
 
 const Dashboard: React.FC = () => {
   useDocumentTitle('Dashboard - CO-SAFE Connect')
 
   const [useRealData, setUseRealData] = React.useState(false)
+  const [activeSession, setActiveSession] = React.useState<Database['public']['Tables']['sessions']['Row'] | null>(null)
+  const [isStartingSession, setIsStartingSession] = React.useState(false)
 
   const {
     currentReading,
@@ -22,18 +26,91 @@ const Dashboard: React.FC = () => {
   } = useAppStore()
 
   const { startSimulation, stopSimulation } = useSimulation()
-  const { isLoading: loadingSupabase, refetch } = useSupabaseRealtime('CO-SAFE-001', useRealData)
+  const { isLoading: loadingSupabase } = useSupabaseRealtime('CO-SAFE-001', useRealData)
 
-  const handleToggleLiveData = () => {
-    if (useRealData) {
-      // Switching off live data
-      setUseRealData(false)
-    } else {
-      // Switching on live data - stop simulation first
-      if (isSimulating) {
-        stopSimulation()
+  // Check for active session on mount
+  React.useEffect(() => {
+    checkActiveSession()
+  }, [])
+
+  // Heartbeat: Send periodic updates to keep session alive
+  React.useEffect(() => {
+    if (!activeSession) return;
+
+    // Send initial heartbeat
+    updateSessionHeartbeat(activeSession.session_id);
+
+    // Set up interval to send heartbeat every 30 seconds
+    const heartbeatInterval = setInterval(() => {
+      updateSessionHeartbeat(activeSession.session_id);
+      console.log('💓 Session heartbeat sent');
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(heartbeatInterval);
+    };
+  }, [activeSession?.session_id])
+
+  const checkActiveSession = async () => {
+    try {
+      const session = await getActiveSession('CO-SAFE-001')
+      if (session) {
+        setActiveSession(session)
+        setUseRealData(true)
       }
+    } catch (error) {
+      console.error('Error checking active session:', error)
+    }
+  }
+
+  const handleStartMonitoring = async () => {
+    try {
+      setIsStartingSession(true)
+      const session = await startMonitoringSession('CO-SAFE-001')
+      setActiveSession(session)
       setUseRealData(true)
+      console.log('Monitoring session started:', session)
+    } catch (error: any) {
+      console.error('Failed to start monitoring:', error)
+
+      // Parse error type and show specific message
+      const errorMessage = error.message || 'Unknown error'
+
+      if (errorMessage.includes('DEVICE_IN_USE')) {
+        alert('⚠️ Device is already monitoring.\n\nAnother session is active. Please stop it first or wait for it to time out.')
+      } else if (errorMessage.includes('COMMAND_FAILED')) {
+        alert('❌ Failed to connect to hardware.\n\nCould not send start command. Please check:\n• Hardware is powered on\n• WiFi connection is stable\n• Try again in a moment')
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        alert('🌐 Network error.\n\nPlease check your internet connection and try again.')
+      } else {
+        alert(`❌ Failed to start monitoring\n\n${errorMessage}`)
+      }
+    } finally {
+      setIsStartingSession(false)
+    }
+  }
+
+  const handleStopMonitoring = async () => {
+    if (!activeSession) return
+
+    try {
+      setIsStartingSession(true)
+      await stopMonitoringSession(activeSession.session_id, 'CO-SAFE-001')
+      setActiveSession(null)
+      setUseRealData(false)
+      console.log('Monitoring session stopped')
+    } catch (error: any) {
+      console.error('Failed to stop monitoring:', error)
+
+      const errorMessage = error.message || 'Unknown error'
+
+      if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        alert('🌐 Network error while stopping session.\n\nThe session may still be active. Refresh the page to check.')
+      } else {
+        alert(`❌ Failed to stop monitoring\n\n${errorMessage}`)
+      }
+    } finally {
+      setIsStartingSession(false)
     }
   }
 
@@ -173,14 +250,23 @@ const Dashboard: React.FC = () => {
             {isSimulating ? "Stop Demo" : "Demo"}
           </Button>
 
-          <Button
-            variant={useRealData ? "default" : "outline"}
-            onClick={handleToggleLiveData}
-            disabled={isSimulating || loadingSupabase}
-            className="text-xs"
-          >
-            {loadingSupabase ? "Loading..." : useRealData ? "Live On" : "Live Data"}
-          </Button>
+          {activeSession ? (
+            <Button
+              onClick={handleStopMonitoring}
+              disabled={isStartingSession}
+              className="text-xs bg-red-500 hover:bg-red-600"
+            >
+              {isStartingSession ? "Stopping..." : "Stop"}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStartMonitoring}
+              disabled={isStartingSession}
+              className="text-xs bg-green-500 hover:bg-green-600"
+            >
+              {isStartingSession ? "Starting..." : "Start"}
+            </Button>
+          )}
         </div>
 
         {useRealData && !loadingSupabase && (

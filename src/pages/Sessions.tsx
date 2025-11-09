@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { format, formatDistanceToNow, differenceInMinutes } from 'date-fns'
+import { motion } from 'framer-motion'
+import { format, differenceInMinutes } from 'date-fns'
 import {
   AreaChart,
   Area,
@@ -293,7 +293,6 @@ const SessionDetailPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
       <SessionDetail
         session={session}
-        readings={sessionReadings}
         rawReadings={rawReadings}
         stats={sessionStats}
         chartData={chartData}
@@ -388,7 +387,6 @@ const SessionsList: React.FC<SessionsListProps> = ({
 // Session Detail Component
 interface SessionDetailProps {
   session: SessionWithStats | null
-  readings: SessionReading[]
   rawReadings: Database['public']['Tables']['co_readings']['Row'][] // For AI analysis
   stats: SessionStats | null
   chartData: any[]
@@ -400,7 +398,6 @@ interface SessionDetailProps {
 
 const SessionDetail: React.FC<SessionDetailProps> = ({
   session,
-  readings,
   rawReadings,
   stats,
   chartData,
@@ -431,8 +428,7 @@ const SessionDetail: React.FC<SessionDetailProps> = ({
   // Mock AI Analysis Generator
   const generateAIAnalysis = (
     session: SessionWithStats,
-    stats: SessionStats | null,
-    readings: SessionReading[]
+    stats: SessionStats | null
   ): string => {
     if (!stats) return ''
 
@@ -440,7 +436,6 @@ const SessionDetail: React.FC<SessionDetailProps> = ({
     const totalReadings = stats.total_readings || 0
     const avgCO = stats.avg_co_level?.toFixed(1) ?? '0.0'
     const maxCO = stats.max_co_level?.toFixed(1) ?? '0.0'
-    const minCO = stats.min_co_level?.toFixed(1) ?? '0.0'
     const safeCount = stats.safe_count || 0
     const warningCount = stats.warning_count || 0
     const criticalCount = stats.critical_count || 0
@@ -513,7 +508,7 @@ Based on the data, ${recommendation}. ${mosfetInterpretation} Overall, the vehic
       console.error('AI analysis failed, using fallback:', error)
 
       // Fallback to mock analysis if API fails
-      const mockAnalysis = generateAIAnalysis(session, stats, readings)
+      const mockAnalysis = generateAIAnalysis(session, stats)
       setAnalysisText(mockAnalysis)
 
       // Try to save mock analysis to database
