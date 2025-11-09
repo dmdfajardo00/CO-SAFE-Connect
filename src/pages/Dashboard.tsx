@@ -3,10 +3,12 @@ import { motion } from 'framer-motion'
 import { Icon } from '@iconify/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useAppStore, useSimulation } from '@/store/useAppStore'
+import { useAppStore, useSimulation, useSupabaseRealtime } from '@/store/useAppStore'
 import Speedometer from '@/components/charts/Speedometer'
 
 const Dashboard: React.FC = () => {
+  const [useRealData, setUseRealData] = React.useState(false)
+
   const {
     currentReading,
     device,
@@ -17,6 +19,20 @@ const Dashboard: React.FC = () => {
   } = useAppStore()
 
   const { startSimulation, stopSimulation } = useSimulation()
+  const { isLoading: loadingSupabase, refetch } = useSupabaseRealtime('CO-SAFE-001', useRealData)
+
+  const handleToggleLiveData = () => {
+    if (useRealData) {
+      // Switching off live data
+      setUseRealData(false)
+    } else {
+      // Switching on live data - stop simulation first
+      if (isSimulating) {
+        stopSimulation()
+      }
+      setUseRealData(true)
+    }
+  }
 
   const getStatusColor = (value: number | undefined) => {
     if (!value) return 'text-gray-400'
@@ -135,22 +151,41 @@ const Dashboard: React.FC = () => {
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             variant={device.connected ? "secondary" : "default"}
             onClick={handleConnect}
             disabled={device.connected}
+            className="text-xs"
           >
-            {device.connected ? "Connected" : "Connect Device"}
+            {device.connected ? "Connected" : "Connect"}
           </Button>
-          
+
           <Button
-            variant="outline"
+            variant={isSimulating ? "default" : "outline"}
             onClick={isSimulating ? stopSimulation : startSimulation}
+            disabled={useRealData}
+            className="text-xs"
           >
-            {isSimulating ? "Stop Demo" : "Start Demo"}
+            {isSimulating ? "Stop Demo" : "Demo"}
+          </Button>
+
+          <Button
+            variant={useRealData ? "default" : "outline"}
+            onClick={handleToggleLiveData}
+            disabled={isSimulating || loadingSupabase}
+            className="text-xs"
+          >
+            {loadingSupabase ? "Loading..." : useRealData ? "Live On" : "Live Data"}
           </Button>
         </div>
+
+        {useRealData && !loadingSupabase && (
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+            <Icon icon="mdi:database-sync" className="inline w-4 h-4 mr-1" />
+            Connected to Arduino device CO-SAFE-001
+          </p>
+        )}
       </div>
     </div>
   )
