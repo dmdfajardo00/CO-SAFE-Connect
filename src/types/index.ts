@@ -160,6 +160,7 @@ export interface Session {
   started_at: string
   ended_at: string | null
   notes: string | null
+  ai_analysis: string | null
 }
 
 export interface SessionWithDevice extends Session {

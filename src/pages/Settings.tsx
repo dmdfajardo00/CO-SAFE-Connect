@@ -15,8 +15,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useAppStore } from '@/store/useAppStore'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const Settings: React.FC = () => {
+  useDocumentTitle('Settings - CO-SAFE Connect')
+
   const { device, updateDeviceStatus } = useAppStore()
   const [deviceName, setDeviceName] = useState(device.name || '')
   const [isEditingDevice, setIsEditingDevice] = useState(false)

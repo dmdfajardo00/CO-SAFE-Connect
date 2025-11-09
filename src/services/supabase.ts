@@ -42,6 +42,7 @@ export interface Database {
           started_at: string | null;
           ended_at: string | null;
           notes: string | null;
+          ai_analysis: string | null;
         };
         Insert: {
           session_id?: string;
@@ -50,6 +51,7 @@ export interface Database {
           started_at?: string | null;
           ended_at?: string | null;
           notes?: string | null;
+          ai_analysis?: string | null;
         };
         Update: {
           session_id?: string;
@@ -58,6 +60,7 @@ export interface Database {
           started_at?: string | null;
           ended_at?: string | null;
           notes?: string | null;
+          ai_analysis?: string | null;
         };
       };
       co_readings: {
@@ -153,7 +156,8 @@ export async function getSessionStats(sessionId: string) {
     .rpc('get_session_stats', { p_session_id: sessionId });
 
   if (error) throw error;
-  return data;
+  // RPC functions return arrays, so get the first result
+  return data?.[0] || null;
 }
 
 /**
@@ -202,6 +206,21 @@ export async function endSession(sessionId: string) {
     .rpc('end_session', {
       p_session_id: sessionId,
     });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Update AI analysis for a session
+ */
+export async function updateSessionAnalysis(sessionId: string, analysis: string) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({ ai_analysis: analysis })
+    .eq('session_id', sessionId)
+    .select()
+    .single();
 
   if (error) throw error;
   return data;

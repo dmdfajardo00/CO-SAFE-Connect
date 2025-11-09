@@ -5,8 +5,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppStore, useSimulation, useSupabaseRealtime } from '@/store/useAppStore'
 import Speedometer from '@/components/charts/Speedometer'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 const Dashboard: React.FC = () => {
+  useDocumentTitle('Dashboard - CO-SAFE Connect')
+
   const [useRealData, setUseRealData] = React.useState(false)
 
   const {

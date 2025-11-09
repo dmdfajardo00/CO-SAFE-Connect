@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Routes, Route, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, formatDistanceToNow, differenceInMinutes } from 'date-fns'
@@ -19,11 +20,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getSessions, getSessionReadings, getSessionStats, type Database } from '@/services/supabase'
+import { getSessions, getSessionReadings, getSessionStats, updateSessionAnalysis, type Database } from '@/services/supabase'
 import { generateSessionAnalysis } from '@/services/openrouter'
 import type { Session, SessionStats, SessionReading } from '@/types'
-
-type ViewMode = 'list' | 'detail'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface SessionWithStats extends Session {
   stats?: SessionStats
@@ -32,22 +32,58 @@ interface SessionWithStats extends Session {
 }
 
 const Sessions: React.FC = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  return (
+    <Routes>
+      <Route index element={<SessionsListPage />} />
+      <Route path=":sessionId" element={<SessionDetailPage />} />
+    </Routes>
+  )
+}
+
+// Helper functions (shared across components)
+const hapticFeedback = () => {
+  if (navigator.vibrate) {
+    navigator.vibrate(10)
+  }
+}
+
+const getSessionDuration = (startedAt: string, endedAt: string | null) => {
+    const start = new Date(startedAt)
+    const end = endedAt ? new Date(endedAt) : new Date()
+    const minutes = differenceInMinutes(end, start)
+
+    if (minutes < 60) {
+      return `${minutes}m`
+    }
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours}h ${mins}m`
+  }
+
+const getStatusBadge = (session: SessionWithStats) => {
+  if (!session.ended_at) {
+    return (
+      <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+        <Icon icon="mdi:circle" className="w-2 h-2 animate-pulse" />
+        Active
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="text-slate-600 dark:text-slate-400">
+      Completed
+    </Badge>
+  )
+}
+
+// SessionsListPage Component
+const SessionsListPage: React.FC = () => {
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState<SessionWithStats[]>([])
-  const [selectedSession, setSelectedSession] = useState<SessionWithStats | null>(null)
-  const [sessionReadings, setSessionReadings] = useState<SessionReading[]>([])
-  const [rawReadings, setRawReadings] = useState<Database['public']['Tables']['co_readings']['Row'][]>([]) // For AI analysis
-  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Haptic feedback helper
-  const hapticFeedback = () => {
-    if (navigator.vibrate) {
-      navigator.vibrate(10)
-    }
-  }
+  useDocumentTitle('Sessions - CO-SAFE Connect')
 
   // Load sessions on mount
   useEffect(() => {
@@ -68,90 +104,10 @@ const Sessions: React.FC = () => {
     }
   }
 
-  const loadSessionDetail = async (session: SessionWithStats) => {
-    try {
-      setIsLoadingDetail(true)
-      setSelectedSession(session)
-      setViewMode('detail')
-      hapticFeedback()
-
-      // Load readings and stats in parallel
-      const [readings, stats] = await Promise.all([
-        getSessionReadings(session.session_id),
-        getSessionStats(session.session_id),
-      ])
-
-      setRawReadings(readings || []) // Store raw DB rows for AI analysis
-      setSessionReadings(readings || [])
-      setSessionStats(stats || null)
-    } catch (err) {
-      console.error('Error loading session detail:', err)
-      setError('Failed to load session details.')
-    } finally {
-      setIsLoadingDetail(false)
-    }
-  }
-
-  const handleBackToList = () => {
-    setViewMode('list')
-    setSelectedSession(null)
-    setSessionReadings([])
-    setSessionStats(null)
+  const handleSessionClick = (session: SessionWithStats) => {
     hapticFeedback()
+    navigate(`/sessions/${session.session_id}`)
   }
-
-  // Session duration helper
-  const getSessionDuration = (startedAt: string, endedAt: string | null) => {
-    const start = new Date(startedAt)
-    const end = endedAt ? new Date(endedAt) : new Date()
-    const minutes = differenceInMinutes(end, start)
-
-    if (minutes < 60) {
-      return `${minutes}m`
-    }
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours}h ${mins}m`
-  }
-
-  // Status badge helper
-  const getStatusBadge = (session: SessionWithStats) => {
-    if (!session.ended_at) {
-      return (
-        <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
-          <Icon icon="mdi:circle" className="w-2 h-2 animate-pulse" />
-          Active
-        </Badge>
-      )
-    }
-    return (
-      <Badge variant="outline" className="text-slate-600 dark:text-slate-400">
-        Completed
-      </Badge>
-    )
-  }
-
-  // Chart data preparation
-  const chartData = useMemo(() => {
-    if (!sessionReadings.length) return []
-
-    return sessionReadings.map((reading) => ({
-      time: format(new Date(reading.created_at), 'HH:mm'),
-      value: reading.co_level,
-      status: reading.status,
-    }))
-  }, [sessionReadings])
-
-  // Status distribution data
-  const distributionData = useMemo(() => {
-    if (!sessionStats) return []
-
-    return [
-      { name: 'Safe', value: sessionStats.safe_count, color: '#10B981' },
-      { name: 'Warning', value: sessionStats.warning_count, color: '#F59E0B' },
-      { name: 'Critical', value: sessionStats.critical_count, color: '#EF4444' },
-    ].filter((item) => item.value > 0)
-  }, [sessionStats])
 
   // Render loading state
   if (isLoading) {
@@ -209,30 +165,143 @@ const Sessions: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
-      <AnimatePresence mode="wait">
-        {viewMode === 'list' ? (
-          <SessionsList
-            key="list"
-            sessions={sessions}
-            onSessionClick={loadSessionDetail}
-            getStatusBadge={getStatusBadge}
-            getSessionDuration={getSessionDuration}
-          />
-        ) : (
-          <SessionDetail
-            key="detail"
-            session={selectedSession}
-            readings={sessionReadings}
-            rawReadings={rawReadings}
-            stats={sessionStats}
-            chartData={chartData}
-            distributionData={distributionData}
-            isLoading={isLoadingDetail}
-            onBack={handleBackToList}
-            getSessionDuration={getSessionDuration}
-          />
-        )}
-      </AnimatePresence>
+      <SessionsList
+        sessions={sessions}
+        onSessionClick={handleSessionClick}
+        getStatusBadge={getStatusBadge}
+        getSessionDuration={getSessionDuration}
+      />
+    </div>
+  )
+}
+
+// SessionDetailPage Component
+const SessionDetailPage: React.FC = () => {
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const navigate = useNavigate()
+  const [session, setSession] = useState<SessionWithStats | null>(null)
+  const [sessionReadings, setSessionReadings] = useState<SessionReading[]>([])
+  const [rawReadings, setRawReadings] = useState<Database['public']['Tables']['co_readings']['Row'][]>([])
+  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Dynamic document title
+  const documentTitle = useMemo(() => {
+    if (session) {
+      const sessionDate = format(new Date(session.started_at), 'MMM d, yyyy h:mm a')
+      return `Session ${sessionDate} - CO-SAFE Connect`
+    }
+    return 'Session Detail - CO-SAFE Connect'
+  }, [session])
+
+  useDocumentTitle(documentTitle)
+
+  // Load session detail when sessionId changes
+  useEffect(() => {
+    if (!sessionId) {
+      navigate('/sessions')
+      return
+    }
+    loadSessionDetail(sessionId)
+  }, [sessionId])
+
+  const loadSessionDetail = async (id: string) => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // Load session metadata first
+      const sessions = await getSessions()
+      const foundSession = sessions?.find((s) => s.session_id === id)
+
+      if (!foundSession) {
+        setError('Session not found')
+        setTimeout(() => navigate('/sessions'), 2000)
+        return
+      }
+
+      setSession(foundSession)
+
+      // Load readings and stats in parallel
+      const [readings, stats] = await Promise.all([
+        getSessionReadings(id),
+        getSessionStats(id),
+      ])
+
+      console.log('📊 Session stats loaded:', stats)
+      console.log('📈 Session readings count:', readings?.length)
+
+      setRawReadings(readings || [])
+      setSessionReadings(readings || [])
+      setSessionStats(stats || null)
+    } catch (err) {
+      console.error('Error loading session detail:', err)
+      setError('Failed to load session details.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleBack = () => {
+    hapticFeedback()
+    navigate('/sessions')
+  }
+
+  // Chart data preparation
+  const chartData = useMemo(() => {
+    if (!sessionReadings.length) return []
+
+    return sessionReadings.map((reading) => ({
+      time: format(new Date(reading.created_at), 'HH:mm'),
+      value: reading.co_level,
+      status: reading.status,
+    }))
+  }, [sessionReadings])
+
+  // Status distribution data
+  const distributionData = useMemo(() => {
+    if (!sessionStats) return []
+
+    return [
+      { name: 'Safe', value: sessionStats.safe_count, color: '#10B981' },
+      { name: 'Warning', value: sessionStats.warning_count, color: '#F59E0B' },
+      { name: 'Critical', value: sessionStats.critical_count, color: '#EF4444' },
+    ].filter((item) => item.value > 0)
+  }, [sessionStats])
+
+  // Render error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center px-6">
+        <div className="text-center space-y-4">
+          <div className="inline-flex p-4 rounded-full bg-red-50 dark:bg-red-950/30">
+            <Icon icon="mdi:alert-circle" width={32} height={32} color="#EF4444" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
+            {error}
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
+            Redirecting to sessions list...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
+      <SessionDetail
+        session={session}
+        readings={sessionReadings}
+        rawReadings={rawReadings}
+        stats={sessionStats}
+        chartData={chartData}
+        distributionData={distributionData}
+        isLoading={isLoading}
+        onBack={handleBack}
+        getSessionDuration={getSessionDuration}
+      />
     </div>
   )
 }
@@ -252,12 +321,7 @@ const SessionsList: React.FC<SessionsListProps> = ({
   getSessionDuration,
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="px-6 py-6 space-y-4"
-    >
+    <div className="px-6 py-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Sessions</h1>
         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
@@ -317,7 +381,7 @@ const SessionsList: React.FC<SessionsListProps> = ({
           </motion.button>
         ))}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -347,6 +411,15 @@ const SessionDetail: React.FC<SessionDetailProps> = ({
 }) => {
   const [analysisText, setAnalysisText] = useState<string>('')
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false)
+
+  // Load existing AI analysis when session changes
+  React.useEffect(() => {
+    if (session?.ai_analysis) {
+      setAnalysisText(session.ai_analysis)
+    } else {
+      setAnalysisText('')
+    }
+  }, [session?.session_id])
 
   // Haptic feedback helper
   const hapticFeedback = () => {
@@ -432,12 +505,23 @@ Based on the data, ${recommendation}. ${mosfetInterpretation} Overall, the vehic
       // Call OpenRouter API for real AI analysis
       const analysis = await generateSessionAnalysis(session, stats, rawReadings)
       setAnalysisText(analysis)
+
+      // Save analysis to database
+      await updateSessionAnalysis(session.session_id, analysis)
+      console.log('AI analysis saved to database')
     } catch (error) {
       console.error('AI analysis failed, using fallback:', error)
 
       // Fallback to mock analysis if API fails
       const mockAnalysis = generateAIAnalysis(session, stats, readings)
       setAnalysisText(mockAnalysis)
+
+      // Try to save mock analysis to database
+      try {
+        await updateSessionAnalysis(session.session_id, mockAnalysis)
+      } catch (dbError) {
+        console.error('Failed to save analysis to database:', dbError)
+      }
     } finally {
       setIsGeneratingAnalysis(false)
     }

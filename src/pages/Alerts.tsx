@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface SeverityMeta {
   label: string
@@ -65,6 +66,8 @@ const getSeverityMeta = (level: string): SeverityMeta => {
 }
 
 const Alerts: React.FC = () => {
+  useDocumentTitle('Alerts - CO-SAFE Connect')
+
   const { alerts, acknowledgeAlert, clearAlerts } = useAppStore()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)

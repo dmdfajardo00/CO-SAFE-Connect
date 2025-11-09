@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from './store/useAppStore'
@@ -11,16 +12,27 @@ import Welcome from './pages/Welcome'
 import PWAReloadPrompt from './components/ui/PWAReloadPrompt'
 import './index.css'
 
-function App() {
-  const [activeTab, setActiveTab] = useState('home')
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated)
+
+  if (!isAuthenticated) {
+    return <Navigate to="/welcome" replace />
+  }
+
+  return <>{children}</>
+}
+
+// App Layout Component (for authenticated routes)
+function AppLayout() {
   const [showSourceSelector, setShowSourceSelector] = useState(false)
   const sourceSelectorRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
 
   const {
     settings,
     device,
-    updateSettings,
-    isAuthenticated
+    updateSettings
   } = useAppStore()
 
   useEffect(() => {
@@ -40,21 +52,21 @@ function App() {
     }
   }, [settings.darkMode])
 
-  const handleNavigation = (tab: string) => {
-    setActiveTab(tab)
-    // Add haptic feedback simulation
+  const hapticFeedback = () => {
     if (navigator.vibrate) {
       navigator.vibrate(10)
     }
   }
 
-  const toggleTheme = () => {
-    updateSettings({ darkMode: !settings.darkMode })
+  const isActive = (path: string) => {
+    if (path === '/dashboard') {
+      return location.pathname === '/' || location.pathname === '/dashboard'
+    }
+    return location.pathname.startsWith(path)
   }
 
-  // Show Welcome page if not authenticated
-  if (!isAuthenticated) {
-    return <Welcome />
+  const toggleTheme = () => {
+    updateSettings({ darkMode: !settings.darkMode })
   }
 
   return (
@@ -135,48 +147,57 @@ function App() {
 
       {/* Main Content */}
       <main className="relative flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors">
-        <AnimatePresence mode="wait">
-          {activeTab === 'home' && (
+        <Routes>
+          <Route path="/" element={
             <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
-              <Dashboard key="dashboard" />
+              <Dashboard />
             </div>
-          )}
-          {activeTab === 'alerts' && <Alerts key="alerts" />}
-          {activeTab === 'sessions' && (
+          } />
+          <Route path="/dashboard" element={
             <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
-              <Sessions key="sessions" />
+              <Dashboard />
             </div>
-          )}
-          {activeTab === 'settings' && (
+          } />
+          <Route path="/alerts" element={<Alerts />} />
+          <Route path="/sessions/*" element={
             <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
-              <Settings key="settings" />
+              <Sessions />
             </div>
-          )}
-        </AnimatePresence>
+          } />
+          <Route path="/settings" element={
+            <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
+              <Settings />
+            </div>
+          } />
+        </Routes>
       </main>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur shadow-2xl z-50 transition-colors">
         <div className="mx-auto w-full max-w-md grid grid-cols-4 text-center">
           {[
-            { id: 'home', icon: 'tabler:home', label: 'Home' },
-            { id: 'alerts', icon: 'solar:danger-triangle-linear', label: 'Alerts' },
-            { id: 'sessions', icon: 'mdi:history', label: 'Sessions' },
-            { id: 'settings', icon: 'solar:settings-minimalistic-linear', label: 'Settings' }
-          ].map(tab => (
-            <motion.button
-              key={tab.id}
-              onClick={() => handleNavigation(tab.id)}
-              className={`py-3 flex flex-col items-center gap-1 transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'text-black dark:text-white'
-                  : 'text-gray-400 dark:text-gray-600'
-              }`}
-              whileTap={{ scale: 0.95 }}
+            { id: 'home', path: '/dashboard', icon: 'tabler:home', label: 'Home' },
+            { id: 'alerts', path: '/alerts', icon: 'solar:danger-triangle-linear', label: 'Alerts' },
+            { id: 'sessions', path: '/sessions', icon: 'mdi:history', label: 'Sessions' },
+            { id: 'settings', path: '/settings', icon: 'solar:settings-minimalistic-linear', label: 'Settings' }
+          ].map(item => (
+            <Link
+              key={item.id}
+              to={item.path}
+              onClick={hapticFeedback}
             >
-              <Icon icon={tab.icon} className="w-6 h-6" />
-              <span className="text-[11px] font-medium">{tab.label}</span>
-            </motion.button>
+              <motion.div
+                className={`py-3 flex flex-col items-center gap-1 transition-all duration-200 ${
+                  isActive(item.path)
+                    ? 'text-black dark:text-white'
+                    : 'text-gray-400 dark:text-gray-600'
+                }`}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Icon icon={item.icon} className="w-6 h-6" />
+                <span className="text-[11px] font-medium">{item.label}</span>
+              </motion.div>
+            </Link>
           ))}
         </div>
       </nav>
@@ -184,6 +205,19 @@ function App() {
       {/* PWA Reload Prompt */}
       <PWAReloadPrompt />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      } />
+    </Routes>
   )
 }
 

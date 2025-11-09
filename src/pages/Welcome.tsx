@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -7,10 +8,14 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAppStore } from '@/store/useAppStore'
 import { checkUserExists, createUser } from '@/services/auth'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 type OnboardingStep = 'email' | 'name' | 'complete'
 
 const Welcome: React.FC = () => {
+  useDocumentTitle('Welcome - CO-SAFE Connect')
+  const navigate = useNavigate()
+
   const [step, setStep] = useState<OnboardingStep>('email')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -280,7 +285,7 @@ const Welcome: React.FC = () => {
                   <Button
                     size="touch-lg"
                     className="w-full font-semibold"
-                    onClick={() => window.location.reload()}
+                    onClick={() => navigate('/dashboard')}
                   >
                     Go to Dashboard
                     <Icon icon="mdi:arrow-right" className="ml-2 w-5 h-5" />
