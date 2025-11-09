@@ -298,9 +298,6 @@ const Welcome: React.FC = () => {
           transition={{ delay: 0.5 }}
           className="mt-8 text-center"
         >
-          <p className="text-xs text-slate-500 dark:text-slate-500">
-            Protecting lives through real-time CO monitoring
-          </p>
         </motion.div>
       </div>
     </div>

@@ -70,6 +70,20 @@
   scrollbar-width: none;
 }
 
+/* Shimmer animation for AI analysis loading */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-animation {
+  animation: shimmer 1.5s infinite;
+}
+
 /* Gluestack UI styling fixes - The Emotion styles aren't rendering, add manual overrides */
 @layer components {
   /* Ensure all Gluestack views have proper display */
@@ -240,4 +254,18 @@
     border-color: #fde047;
     color: #854d0e;
   }
+}
+
+/* Shimmer Animation for Loading States */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-animation {
+  animation: shimmer 1.5s infinite;
 }

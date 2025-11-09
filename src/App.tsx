@@ -5,7 +5,7 @@ import { useAppStore } from './store/useAppStore'
 import { Button } from './components/ui/button'
 import Dashboard from './pages/Dashboard'
 import Alerts from './pages/Alerts'
-import Analytics from './pages/Analytics'
+import Sessions from './pages/Sessions'
 import Settings from './pages/Settings'
 import Welcome from './pages/Welcome'
 import PWAReloadPrompt from './components/ui/PWAReloadPrompt'
@@ -142,9 +142,9 @@ function App() {
             </div>
           )}
           {activeTab === 'alerts' && <Alerts key="alerts" />}
-          {activeTab === 'analytics' && (
+          {activeTab === 'sessions' && (
             <div className="mx-auto w-full max-w-md pb-24 h-full overflow-y-auto">
-              <Analytics key="analytics" />
+              <Sessions key="sessions" />
             </div>
           )}
           {activeTab === 'settings' && (
@@ -161,7 +161,7 @@ function App() {
           {[
             { id: 'home', icon: 'tabler:home', label: 'Home' },
             { id: 'alerts', icon: 'solar:danger-triangle-linear', label: 'Alerts' },
-            { id: 'analytics', icon: 'solar:chart-square-linear', label: 'Analytics' },
+            { id: 'sessions', icon: 'mdi:history', label: 'Sessions' },
             { id: 'settings', icon: 'solar:settings-minimalistic-linear', label: 'Settings' }
           ].map(tab => (
             <motion.button
