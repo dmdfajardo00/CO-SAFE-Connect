@@ -3,6 +3,7 @@ import { Routes, Route, useParams, useNavigate } from 'react-router-dom'
 import { Icon } from '@iconify/react'
 import { motion } from 'framer-motion'
 import { format, differenceInMinutes } from 'date-fns'
+import ReactMarkdown from 'react-markdown'
 import {
   AreaChart,
   Area,
@@ -637,11 +638,9 @@ Based on the data, ${recommendation}. ${mosfetInterpretation} Overall, the vehic
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3"
+                    className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-ul:my-2 prose-li:my-0.5"
                   >
-                    {analysisText.split('\n\n').map((paragraph, index) => (
-                      <p key={index}>{paragraph}</p>
-                    ))}
+                    <ReactMarkdown>{analysisText}</ReactMarkdown>
                   </motion.div>
                 ) : (
                   <p className="text-sm text-slate-400 dark:text-slate-500 italic">

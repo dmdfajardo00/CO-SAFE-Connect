@@ -24,12 +24,14 @@ Context:
 - Critical: ≥ 50 ppm CO
 - MOSFET alarm activates at > 200 ppm (emergency ventilation)
 
-Output format: Exactly 2 paragraphs, 3-4 sentences each. Be concise and actionable.
+Output format (use markdown):
+1. One summary paragraph (2-3 sentences): session duration, average/max CO levels, overall safety status
+2. Key findings as bullet points (3-4 bullets max):
+   - Notable trends or patterns
+   - Critical events or MOSFET activations
+   - Specific recommendations
 
-Paragraph 1: Summarize session duration, average/max CO levels, and overall safety status.
-Paragraph 2: Provide specific recommendations or notable observations (spikes, trends, MOSFET activations).
-
-Write in a professional but accessible tone. Focus on safety and actionable insights.`
+Write in a professional but accessible tone. Be concise and actionable.`
 
 // Types
 interface OpenRouterMessage {
