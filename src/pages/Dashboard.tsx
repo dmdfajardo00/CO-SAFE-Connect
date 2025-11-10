@@ -21,8 +21,6 @@ const Dashboard: React.FC = () => {
     device,
     settings,
     isSimulating,
-    updateDeviceStatus,
-    addAlert,
   } = useAppStore()
 
   const { startSimulation, stopSimulation } = useSimulation()
