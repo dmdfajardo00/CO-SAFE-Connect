@@ -135,21 +135,6 @@ const Dashboard: React.FC = () => {
     return 'Critical'
   }
 
-  const handleConnect = () => {
-    updateDeviceStatus({ 
-      connected: true,
-      battery: Math.round(80 + Math.random() * 20),
-      deviceId: 'CO-SAFE-001',
-      name: '2024 Honda Civic'
-    })
-    
-    addAlert({
-      level: 'info',
-      title: 'Device Connected',
-      message: 'CO-SAFE Monitor connected successfully'
-    })
-  }
-
   return (
     <div className="p-4 space-y-4">
       {/* Main CO Reading Card */}
@@ -231,16 +216,7 @@ const Dashboard: React.FC = () => {
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant={device.connected ? "secondary" : "default"}
-            onClick={handleConnect}
-            disabled={device.connected}
-            className="text-xs"
-          >
-            {device.connected ? "Connected" : "Connect"}
-          </Button>
-
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={isSimulating ? "default" : "outline"}
             onClick={isSimulating ? stopSimulation : startSimulation}
