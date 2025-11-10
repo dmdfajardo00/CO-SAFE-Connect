@@ -1,9 +1,9 @@
-# Vehicle Carbon Monoxide Monitor - REVISED CODE
+# Vehicle Carbon Monoxide Monitor - FINAL SCHEMA-MATCHED CODE
 
 ## Project Overview
 A vehicle carbon monoxide monitoring system using ESP8266 as the MCU/WiFi module, MQ7 analog sensor for CO detection, and IRLZ44N MOSFET for control. The system displays real-time readings on an OLED display and logs data to Supabase.
 
-**UPDATED:** This version uses the correct Supabase schema from `initial-set-up.sql`
+**FINAL VERSION:** Fully matched to CO-SAFE Supabase schema with `mosfet_status` column
 
 ---
 
@@ -94,7 +94,7 @@ void setup() {
 }
 
 void loop() {
-  // Simulate CO sensor reading
+  // Read CO sensor
   int analogValue = analogRead(MQ7_PIN);
   co_ppm = map(analogValue, 0, 4095, 0, 1000);  // simple mapping
 
@@ -117,14 +117,14 @@ void loop() {
 
   // ====== SEND DATA TO SUPABASE ======
   if (millis() - lastSend > sendInterval) {
-    sendToSupabase(co_ppm);
+    sendToSupabase(co_ppm, digitalRead(MOSFET_PIN));
     lastSend = millis();
   }
 
   delay(1000);
 }
 
-void sendToSupabase(float co) {
+void sendToSupabase(float co, int mosfetStatus) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(client, SUPABASE_URL);
@@ -142,10 +142,16 @@ void sendToSupabase(float co) {
       status = "safe";
     }
 
+    // Convert mosfet status to boolean string
+    String mosfetBool = (mosfetStatus == 1) ? "true" : "false";
+
     // Build payload matching co_readings table schema
+    // Required: device_id, co_level
+    // Optional: status, mosfet_status
     String payload = "{\"device_id\":\"" + String(DEVICE_ID) +
                      "\",\"co_level\":" + String(co) +
-                     ",\"status\":\"" + status + "\"}";
+                     ",\"status\":\"" + status +
+                     "\",\"mosfet_status\":" + mosfetBool + "}";
 
     int httpResponseCode = http.POST(payload);
     Serial.print("POST Response: ");
@@ -174,46 +180,41 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 ---
 
-## Changes from Original Code
+## Payload Schema Mapping
 
-### ✅ Updated for CO-SAFE Database Schema
+### Arduino Sends:
+```json
+{
+  "device_id": "CO-SAFE-001",
+  "co_level": 45.2,
+  "status": "warning",
+  "mosfet_status": true
+}
+```
 
-1. **Supabase URL** - Now points to correct table: `co_readings`
-2. **API Credentials** - Uses production Supabase project credentials
-3. **Device ID** - Added constant `DEVICE_ID` set to `"CO-SAFE-001"` (matches seed data)
-4. **Payload Structure** - Changed from:
-   ```json
-   {"co_ppm": X, "mosfet_status": Y}
-   ```
-   To:
-   ```json
-   {"device_id": "CO-SAFE-001", "co_level": X, "status": "safe|warning|critical"}
-   ```
-5. **Status Calculation** - Now matches SQL schema thresholds:
-   - `< 25 ppm` = "safe"
-   - `25-49 ppm` = "warning"
-   - `≥ 50 ppm` = "critical"
+### Supabase `co_readings` Table:
+| Column | Type | Nullable | Default | Arduino Value |
+|--------|------|----------|---------|---------------|
+| `id` | BIGINT | NO | auto-increment | (auto) |
+| `session_id` | UUID | YES | null | (null) |
+| `device_id` | TEXT | NO | - | "CO-SAFE-001" |
+| `co_level` | FLOAT | NO | - | 45.2 |
+| `status` | TEXT | YES | null | "warning" |
+| `created_at` | TIMESTAMPTZ | YES | now() | (auto) |
+| `mosfet_status` | BOOLEAN | YES | false | true |
 
 ---
 
-## System Operation
+## Status Thresholds
 
-### How It Works
-
-1. **Sensor Reading**: Reads CO levels from MQ7 analog input (GPIO 34)
-2. **Display**: Shows current CO ppm and MOSFET state on the OLED display
-3. **Threshold Control**: When CO > 200 ppm, activates MOSFET (can drive an alarm, LED, or ventilation system)
-4. **Data Logging**: Every 15 seconds, posts readings to Supabase `co_readings` table via REST API
-5. **WiFi Connectivity**: Maintains WiFi connection for cloud data logging
-
-### Alarm Threshold
-- **Normal Operation**: CO ≤ 200 ppm → MOSFET OFF
-- **Alert Mode**: CO > 200 ppm → MOSFET ON (activates connected device)
-
-### Database Status Thresholds
+### Database Classification:
 - **Safe**: CO < 25 ppm
 - **Warning**: CO 25-49 ppm
 - **Critical**: CO ≥ 50 ppm
+
+### MOSFET Activation:
+- **OFF**: CO ≤ 200 ppm
+- **ON**: CO > 200 ppm (activates alarm/ventilation)
 
 ---
 
@@ -221,15 +222,19 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 ### Before Uploading
 
-1. **Update WiFi credentials** (lines 47-48):
+1. **Update WiFi credentials** (lines 23-24):
    ```cpp
    const char* ssid = "YOUR_WIFI_SSID";
    const char* password = "YOUR_WIFI_PASSWORD";
    ```
 
 2. **Verify device exists in database**:
-   - The SQL migration already seeds `CO-SAFE-001`
-   - Or manually insert your device into the `devices` table
+   - The SQL migration seeds `CO-SAFE-001`
+   - Or manually insert your device into the `devices` table:
+   ```sql
+   INSERT INTO devices (device_id, device_name, vehicle_model)
+   VALUES ('CO-SAFE-001', 'Main Sensor', 'Your Vehicle Model');
+   ```
 
 3. **Ensure Supabase RLS policies allow writes**:
    - The migration enables anonymous writes to `co_readings`
@@ -254,7 +259,7 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 1. **Open Boards Manager**: Tools → Board → Boards Manager
 2. **Search for**: `esp8266`
-3. **Install**: "ESP8266 by ESP8266 Community" (latest stable version, e.g., 3.1.2 or newer)
+3. **Install**: "ESP8266 by ESP8266 Community" (latest stable version)
 
 ### Step 3: Select Your Board
 
@@ -268,59 +273,79 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 ---
 
-## Troubleshooting
-
-### Board Not Found
-- Ensure ESP8266 board support is installed via Boards Manager
-- Check that the correct board is selected: NodeMCU 1.0 (ESP-12E Module)
-
-### Upload Failed
-- Verify the correct COM port is selected
-- Install USB drivers for CH340/CP2102 if needed
-- Press the FLASH button on the ESP8266 during upload (if required)
-
-### WiFi Connection Issues
-- Double-check SSID and password
-- Ensure 2.4 GHz WiFi (ESP8266 doesn't support 5 GHz)
-- Check signal strength
-
-### Supabase Connection Fails
-- Verify device `CO-SAFE-001` exists in `devices` table (seed data creates it)
-- Check internet connectivity
-- Review Serial Monitor for HTTP response codes (201 = success)
-- Verify RLS policies allow anonymous INSERT on `co_readings`
-
-### HTTP 400/401 Errors
-- API key is correct in the code
-- Device ID matches a record in `devices` table
-- Payload JSON is valid (check Serial Monitor output)
-
-### OLED Not Working
-- Verify I2C address (typically 0x3C or 0x3D)
-- Check SDA/SCL connections
-- Install Adafruit libraries correctly
-
----
-
 ## Testing
 
 ### Expected Behavior
 
 1. **On power-up**: Display shows "Connecting WiFi..." then "WiFi connected!"
 2. **Every second**: Display updates with current CO level and MOSFET status
-3. **Every 15 seconds**: Sends reading to Supabase (check Serial Monitor for response code)
+3. **Every 15 seconds**: Sends reading to Supabase (check Serial Monitor)
 4. **HTTP 201**: Successful insert into database
-5. **Check Supabase**: Query `co_readings` table to see incoming data
 
 ### Verify Database Writes
 
 Run this query in Supabase SQL Editor:
 ```sql
-SELECT * FROM co_readings
+SELECT
+  id,
+  device_id,
+  co_level,
+  status,
+  mosfet_status,
+  created_at
+FROM co_readings
 WHERE device_id = 'CO-SAFE-001'
 ORDER BY created_at DESC
 LIMIT 10;
 ```
+
+### Expected Response Codes
+
+- **201 Created**: Data successfully inserted
+- **400 Bad Request**: JSON payload error or missing required field
+- **401 Unauthorized**: API key incorrect
+- **409 Conflict**: Device ID not found in `devices` table
+
+---
+
+## Troubleshooting
+
+### HTTP 400 Error
+- Check JSON payload format in Serial Monitor
+- Ensure `device_id` exists in `devices` table
+- Verify `co_level` is a valid number
+
+### HTTP 401 Error
+- Verify `SUPABASE_API_KEY` is correct
+- Check RLS policies allow anonymous INSERT
+
+### HTTP 409 Error
+- Insert device into `devices` table first
+- Check foreign key constraint on `device_id`
+
+### MOSFET Not Activating
+- Verify pin connection (GPIO 26)
+- Test with Serial Monitor: check if CO > 200
+- Ensure MOSFET gate resistor is correct
+
+### OLED Not Working
+- Verify I2C address (typically 0x3C)
+- Check SDA/SCL connections
+- Test with I2C scanner sketch
+
+---
+
+## Changes from Original Sir Francis Code
+
+1. ✅ **Table name**: `your_table_name` → `co_readings`
+2. ✅ **URL**: Updated to production Supabase endpoint
+3. ✅ **Payload**:
+   - Added `device_id` field (required)
+   - Changed `co_ppm` → `co_level`
+   - Added `status` field (safe/warning/critical)
+   - Kept `mosfet_status` (now as boolean)
+4. ✅ **Schema compliance**: All fields match `co_readings` table structure
+5. ✅ **Zero breaking changes**: Core logic (pins, thresholds, display) unchanged
 
 ---
 
@@ -337,26 +362,8 @@ LIMIT 10;
 
 ---
 
-## Future Enhancements
-
-- Implement session tracking (call `start_session()` function)
-- Add SMS/email alerts for high CO levels
-- Implement sensor calibration routine
-- Add temperature and humidity compensation
-- Create web dashboard using CO-SAFE Connect PWA
-- Implement battery backup system
-- Add GPS location tracking
-- Multi-sensor support for different vehicle zones
-
----
-
-## License & Support
-
-This is an educational/prototype project. Modify and use at your own discretion. For production use, consult with safety experts and obtain proper certifications.
-
----
-
 **Last Updated**: January 2025
 **Platform**: ESP8266 (NodeMCU 1.0)
 **IDE**: Arduino IDE 1.8.x or 2.x
-**Database**: Supabase PostgreSQL (CO-SAFE schema)
+**Database**: Supabase PostgreSQL (CO-SAFE schema with mosfet_status)
+**Schema Version**: v2 (includes mosfet_status column)

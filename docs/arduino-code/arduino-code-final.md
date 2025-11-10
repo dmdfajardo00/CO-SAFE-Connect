@@ -1,9 +1,27 @@
-# Vehicle Carbon Monoxide Monitor - FINAL SCHEMA-MATCHED CODE
+# Vehicle Carbon Monoxide Monitor - Enhanced Production Code
 
 ## Project Overview
-A vehicle carbon monoxide monitoring system using ESP8266 as the MCU/WiFi module, MQ7 analog sensor for CO detection, and IRLZ44N MOSFET for control. The system displays real-time readings on an OLED display and logs data to Supabase.
+A vehicle carbon monoxide monitoring system using ESP8266 as the MCU/WiFi module, MQ7 analog sensor for CO detection, and IRLZ44N MOSFET for control. The system displays real-time readings on an OLED display and sends data to Supabase.
 
-**FINAL VERSION:** Fully matched to CO-SAFE Supabase schema with `mosfet_status` column
+**PRODUCTION VERSION:** Session-aware, connection-resilient, with NTP time sync and power management
+
+---
+
+## What's New - Enhanced Resilient Version
+
+### Key Features
+- **Session Management**: Arduino only sends data when PWA starts a monitoring session
+- **WiFi Reconnection**: Automatically reconnects with exponential backoff (max 5 retries)
+- **HTTP Retry Logic**: Retries failed POST requests up to 3 times with backoff
+- **WebSocket Recovery**: Automatically reconnects Supabase Realtime if connection drops
+- **NTP Time Sync**: Fetches accurate timestamps from NTP servers for ISO8601 format
+- **Session Timeout**: Auto-stops monitoring after 60 minutes of inactivity
+- **Deep Sleep Mode**: Optional power-saving mode for battery operation (disabled by default)
+- **Comprehensive Logging**: Serial debug output with emoji status indicators
+- **Connection Health Checks**: Monitors WiFi every 10s, WebSocket every 30s
+
+### How It Works
+The Arduino listens for commands from your PWA via WebSocket. When you click "Start" in the dashboard, the PWA creates a session and sends a `START_SESSION:uuid` command. The Arduino receives this command, stores the session ID, and begins sending readings every 15 seconds. Each reading links to the session ID in the database.
 
 ---
 
@@ -16,156 +34,109 @@ A vehicle carbon monoxide monitoring system using ESP8266 as the MCU/WiFi module
 
 ---
 
-## Pin Configuration
+## Pin Configuration (ESP8266 NodeMCU)
+
+**✅ Verified with actual hardware circuit:**
 
 | Component | Pin | Description |
 |-----------|-----|-------------|
-| MQ7 Sensor | GPIO 34 | Analog input for CO reading |
-| MOSFET Gate | GPIO 26 | Digital output to control MOSFET |
-| OLED Display | I2C (SDA/SCL) | Display interface |
+| MQ7 Sensor | A0 | Analog input for CO reading (10-bit ADC) |
+| MOSFET Gate | D5 (GPIO14) | Digital output to control MOSFET |
+| OLED Display | I2C (D2=SDA, D1=SCL) | Display interface (0x3C address) |
+
+### ⚠️ VOLTAGE SAFETY WARNING
+
+**ESP8266 A0 accepts 0-1V maximum.** Hardware verification confirmed no external voltage divider is used. The Flying Fish MQ7 module may have onboard voltage regulation, but **we recommend:**
+
+1. **Before first power-up:** Measure MQ7 A_OUT voltage with multimeter (should be < 1V)
+2. **If voltage > 1V:** Add voltage divider:
+   ```
+   MQ7 A_OUT ─┬─── [270kΩ] ─── A0 (ESP8266)
+              └─── [100kΩ] ─── GND
+   ```
+3. **Monitor Serial output** for unusual readings (all zeros or max values indicate pin damage)
+
+**Hardware used:** Flying Fish MQ7 module (blue PCB, 4-pin) with VCC/GND/D_OUT/A_OUT
 
 ---
 
-## Arduino IDE Code
+## Arduino Code
+
+**Full code available at:** `docs/arduino-code/CO_SAFE_Monitor-enhanced.ino`
+
+This enhanced version includes session management, connection recovery, NTP time sync, and power management features. The code is production-ready and fully compatible with your Supabase schema.
+
+### Key Configuration (Update Before Flashing)
 
 ```cpp
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+// Lines 46-47: WiFi Credentials
+const char* ssid = "YOUR_WIFI_SSID";        // ← Update with your WiFi name
+const char* password = "YOUR_WIFI_PASSWORD"; // ← Update with your WiFi password
 
-// ====== OLED SETUP ======
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// Lines 28-33: Optional Power Settings
+#define ENABLE_DEEP_SLEEP false    // Keep false for vehicle use
+#define SESSION_TIMEOUT_MINUTES 60 // Auto-stop after 60 minutes
+```
 
-// ====== PIN DEFINITIONS ======
-#define MQ7_PIN 34        // Analog pin for MQ7 sensor
-#define MOSFET_PIN 26     // Gate pin for IRLZ44N
+---
 
-// ====== WIFI CREDENTIALS ======
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+## Session Architecture Flow
 
-// ====== SUPABASE API CONFIGURATION ======
-const char* SUPABASE_URL = "https://naadaumxaglqzucacexb.supabase.co/rest/v1/co_readings";
-const char* SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYWRhdW14YWdscXp1Y2FjZXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMzYwMzcsImV4cCI6MjA3NjYxMjAzN30.0ie3FXkPOaZxQfsx4c4GIBo9aMwj_RRSWQOdPRJ0bc0";
-const char* DEVICE_ID = "CO-SAFE-001";  // Must match device in database
-WiFiClient client;
+This diagram shows how the PWA, Supabase, and Arduino communicate:
 
-// ====== VARIABLES ======
-float co_ppm = 0;
-unsigned long lastSend = 0;
-const unsigned long sendInterval = 15000;  // send every 15 seconds
+```
+  ┌─────────────────────────────────────────────────────────┐
+  │ 1. User Clicks "Start Monitoring" in Dashboard         │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 2. PWA → POST /sessions                                 │
+  │    Creates: { device_id, started_at, ended_at: null }  │
+  │    Returns: session_id (UUID)                           │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 3. PWA → POST /device_commands                          │
+  │    { device_id, command: "START_SESSION:uuid" }         │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   │ WebSocket Push (Realtime)
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 4. ESP8266 receives command via WebSocket (<1s)        │
+  │    onCommandReceived() → Sets currentSessionId          │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 5. ESP8266 → POST /co_readings every 15s               │
+  │    { device_id, co_level, status, mosfet_status,       │
+  │      session_id: "uuid" } ← LINKED TO SESSION!         │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 6. PWA displays live data in real-time                 │
+  │    Dashboard updates every second via Supabase          │
+  └─────────────────────────────────────────────────────────┘
 
-void setup() {
-  Serial.begin(115200);
-  pinMode(MOSFET_PIN, OUTPUT);
-  digitalWrite(MOSFET_PIN, LOW);
-
-  // ====== OLED INIT ======
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;);
-  }
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println("Connecting WiFi...");
-  display.display();
-
-  // ====== WIFI CONNECT ======
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("\nWiFi connected");
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("WiFi connected!");
-  display.display();
-  delay(1000);
-}
-
-void loop() {
-  // Read CO sensor
-  int analogValue = analogRead(MQ7_PIN);
-  co_ppm = map(analogValue, 0, 4095, 0, 1000);  // simple mapping
-
-  // ====== CONTROL MOSFET ======
-  if (co_ppm > 200) {
-    digitalWrite(MOSFET_PIN, HIGH);
-  } else {
-    digitalWrite(MOSFET_PIN, LOW);
-  }
-
-  // ====== DISPLAY DATA ======
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("CO Level: ");
-  display.print(co_ppm);
-  display.println(" ppm");
-  display.print("MOSFET: ");
-  display.println(digitalRead(MOSFET_PIN) ? "ON" : "OFF");
-  display.display();
-
-  // ====== SEND DATA TO SUPABASE ======
-  if (millis() - lastSend > sendInterval) {
-    sendToSupabase(co_ppm, digitalRead(MOSFET_PIN));
-    lastSend = millis();
-  }
-
-  delay(1000);
-}
-
-void sendToSupabase(float co, int mosfetStatus) {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    http.begin(client, SUPABASE_URL);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("apikey", SUPABASE_API_KEY);
-    http.addHeader("Authorization", String("Bearer ") + SUPABASE_API_KEY);
-
-    // Determine status based on CO level (matches SQL schema thresholds)
-    String status;
-    if (co >= 50) {
-      status = "critical";
-    } else if (co >= 25) {
-      status = "warning";
-    } else {
-      status = "safe";
-    }
-
-    // Convert mosfet status to boolean string
-    String mosfetBool = (mosfetStatus == 1) ? "true" : "false";
-
-    // Build payload matching co_readings table schema
-    // Required: device_id, co_level
-    // Optional: status, mosfet_status
-    String payload = "{\"device_id\":\"" + String(DEVICE_ID) +
-                     "\",\"co_level\":" + String(co) +
-                     ",\"status\":\"" + status +
-                     "\",\"mosfet_status\":" + mosfetBool + "}";
-
-    int httpResponseCode = http.POST(payload);
-    Serial.print("POST Response: ");
-    Serial.println(httpResponseCode);
-
-    if (httpResponseCode > 0) {
-      Serial.println(http.getString());
-    }
-
-    http.end();
-  } else {
-    Serial.println("WiFi not connected!");
-  }
-}
+  ┌─────────────────────────────────────────────────────────┐
+  │ 7. User Clicks "Stop Monitoring"                        │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 8. PWA → PATCH /sessions/:id { ended_at: NOW() }       │
+  │    PWA → POST /device_commands { command: "STOP" }     │
+  └────────────────┬────────────────────────────────────────┘
+                   │
+                   ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │ 9. ESP8266 receives STOP via WebSocket                 │
+  │    Clears currentSessionId, stops sending readings      │
+  └─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -174,34 +145,41 @@ void sendToSupabase(float co, int mosfetStatus) {
 
 Install these libraries in Arduino IDE via **Sketch → Include Library → Manage Libraries**:
 
-1. **ESP8266 by ESP8266 Community**
-2. **Adafruit SSD1306**
-3. **Adafruit GFX Library**
+1. **ESP8266WiFi** (built-in with ESP8266 core)
+2. **ESP8266HTTPClient** (built-in with ESP8266 core)
+3. **Adafruit SSD1306** - OLED display driver
+4. **Adafruit GFX Library** - Graphics library
+5. **ESPSupabase** - Supabase Realtime WebSocket client
+6. **ArduinoJson** (v7 or later) - JSON parsing
+7. **NTPClient** - Network Time Protocol for accurate timestamps
+8. **WiFiUdp** (built-in with ESP8266 core)
 
 ---
 
 ## Payload Schema Mapping
 
-### Arduino Sends:
+### Arduino Sends (Session-Aware):
 ```json
 {
   "device_id": "CO-SAFE-001",
   "co_level": 45.2,
   "status": "warning",
-  "mosfet_status": true
+  "mosfet_status": true,
+  "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created_at": "2025-01-09T12:34:56Z"
 }
 ```
 
-### Supabase `co_readings` Table:
-| Column | Type | Nullable | Default | Arduino Value |
-|--------|------|----------|---------|---------------|
-| `id` | BIGINT | NO | auto-increment | (auto) |
-| `session_id` | UUID | YES | null | (null) |
-| `device_id` | TEXT | NO | - | "CO-SAFE-001" |
-| `co_level` | FLOAT | NO | - | 45.2 |
-| `status` | TEXT | YES | null | "warning" |
-| `created_at` | TIMESTAMPTZ | YES | now() | (auto) |
-| `mosfet_status` | BOOLEAN | YES | false | true |
+### Supabase `co_readings` Table Schema:
+| Column | Type | Nullable | Default | Arduino Value | Notes |
+|--------|------|----------|---------|---------------|-------|
+| `id` | BIGINT | NO | auto-increment | (auto) | Primary key |
+| `session_id` | UUID | YES | null | "uuid" | Links to sessions table |
+| `device_id` | TEXT | NO | - | "CO-SAFE-001" | Foreign key to devices |
+| `co_level` | DOUBLE PRECISION | NO | - | 45.2 | CO concentration in ppm |
+| `status` | TEXT | YES | null | "warning" | safe/warning/critical |
+| `mosfet_status` | BOOLEAN | YES | false | true | Alarm activation state |
+| `created_at` | TIMESTAMPTZ | YES | now() | ISO8601 | NTP-synced timestamp |
 
 ---
 
@@ -220,25 +198,25 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 ## Configuration Steps
 
-### Before Uploading
+### Before Uploading Code
 
-1. **Update WiFi credentials** (lines 23-24):
+1. **Update WiFi credentials** (lines 46-47 in Arduino code):
    ```cpp
-   const char* ssid = "YOUR_WIFI_SSID";
-   const char* password = "YOUR_WIFI_PASSWORD";
+   const char* ssid = "YOUR_WIFI_SSID";        // Replace with your network name
+   const char* password = "YOUR_WIFI_PASSWORD"; // Replace with your password
    ```
 
-2. **Verify device exists in database**:
-   - The SQL migration seeds `CO-SAFE-001`
-   - Or manually insert your device into the `devices` table:
+2. **Verify device exists in Supabase** (already seeded):
+   - Your migrations already created device `CO-SAFE-001`
+   - Check in Supabase SQL Editor:
    ```sql
-   INSERT INTO devices (device_id, device_name, vehicle_model)
-   VALUES ('CO-SAFE-001', 'Main Sensor', 'Your Vehicle Model');
+   SELECT * FROM devices WHERE device_id = 'CO-SAFE-001';
    ```
 
-3. **Ensure Supabase RLS policies allow writes**:
-   - The migration enables anonymous writes to `co_readings`
-   - Policy: "Devices can insert readings"
+3. **Confirm RLS policies are active** (already configured):
+   - Anonymous users can INSERT into `co_readings` and `device_commands`
+   - This allows Arduino to write without authentication
+   - Your schema migrations set this up automatically
 
 ---
 
@@ -275,77 +253,241 @@ Install these libraries in Arduino IDE via **Sketch → Include Library → Mana
 
 ## Testing
 
-### Expected Behavior
+### Expected Behavior After Flashing
 
-1. **On power-up**: Display shows "Connecting WiFi..." then "WiFi connected!"
-2. **Every second**: Display updates with current CO level and MOSFET status
-3. **Every 15 seconds**: Sends reading to Supabase (check Serial Monitor)
-4. **HTTP 201**: Successful insert into database
+1. **Power-up sequence**:
+   - Display shows "Connecting WiFi..."
+   - WiFi connects and shows IP address
+   - NTP time syncs (or uses fallback)
+   - Supabase WebSocket connects
+   - Display shows "System Ready, Waiting for session..."
+
+2. **While waiting (IDLE state)**:
+   - Display updates CO reading and MOSFET status every second
+   - **No data is sent to Supabase** (waiting for START command)
+   - Serial Monitor shows connection health checks
+
+3. **When you click "Start" in PWA**:
+   - Arduino receives `START_SESSION:uuid` via WebSocket
+   - Display shows "Session Started!" with session ID
+   - Arduino sends readings every 15 seconds with session_id attached
+   - Serial Monitor shows "✅ Data sent successfully: 201"
+
+4. **When you click "Stop" in PWA**:
+   - Arduino receives `STOP_SESSION` command
+   - Display shows "Session Stopped"
+   - Stops sending readings, returns to IDLE state
 
 ### Verify Database Writes
 
-Run this query in Supabase SQL Editor:
+Check that readings are linked to sessions:
 ```sql
 SELECT
-  id,
-  device_id,
-  co_level,
-  status,
-  mosfet_status,
-  created_at
-FROM co_readings
-WHERE device_id = 'CO-SAFE-001'
-ORDER BY created_at DESC
+  r.id,
+  r.session_id,
+  r.device_id,
+  r.co_level,
+  r.status,
+  r.mosfet_status,
+  r.created_at,
+  s.started_at AS session_started
+FROM co_readings r
+LEFT JOIN sessions s ON r.session_id = s.session_id
+WHERE r.device_id = 'CO-SAFE-001'
+ORDER BY r.created_at DESC
 LIMIT 10;
 ```
 
 ### Expected Response Codes
 
-- **201 Created**: Data successfully inserted
-- **400 Bad Request**: JSON payload error or missing required field
-- **401 Unauthorized**: API key incorrect
-- **409 Conflict**: Device ID not found in `devices` table
+- **201 Created**: Reading successfully saved to database
+- **400 Bad Request**: Invalid JSON or missing required field (device_id, co_level)
+- **401 Unauthorized**: Wrong API key
+- **500 Server Error**: Retries automatically (check Serial Monitor)
 
 ---
 
 ## Troubleshooting
 
-### HTTP 400 Error
-- Check JSON payload format in Serial Monitor
-- Ensure `device_id` exists in `devices` table
-- Verify `co_level` is a valid number
+### Arduino Not Sending Data
+**Symptom**: Display shows readings but nothing in database
+**Solution**: You must click "Start" in the PWA first! Arduino only sends data when a session is active.
 
-### HTTP 401 Error
-- Verify `SUPABASE_API_KEY` is correct
-- Check RLS policies allow anonymous INSERT
+### WebSocket Connection Failed
+**Symptom**: Serial Monitor shows "⚠️ WebSocket disconnected"
+**Solution**:
+- Check WiFi connection stability
+- Verify Supabase project is active
+- Arduino auto-reconnects every 30 seconds
 
-### HTTP 409 Error
-- Insert device into `devices` table first
-- Check foreign key constraint on `device_id`
+### WiFi Keeps Reconnecting
+**Symptom**: Display shows "WiFi Failed! Retrying..."
+**Solution**:
+- Check WiFi credentials (ssid/password)
+- Ensure 2.4GHz network (ESP8266 doesn't support 5GHz)
+- Move closer to router during initial testing
+- After 5 failed attempts, Arduino restarts automatically
+
+### NTP Sync Failed
+**Symptom**: Serial Monitor shows "⚠️ NTP sync failed"
+**Solution**:
+- Not critical - Arduino uses millis() fallback
+- Check firewall allows UDP port 123
+- Arduino retries every 60 seconds
+
+### HTTP 400/401/500 Errors
+**Symptom**: Serial Monitor shows "❌ Request failed"
+**Solution**:
+- **400**: Check JSON payload format, ensure session_id is valid UUID
+- **401**: Verify SUPABASE_API_KEY matches your project
+- **500**: Arduino retries automatically (up to 3 attempts)
+
+### Session Timeout
+**Symptom**: Display shows "Session Timeout Auto-stopped"
+**Solution**: Normal behavior after 60 minutes of inactivity. Click "Start" again.
 
 ### MOSFET Not Activating
-- Verify pin connection (GPIO 26)
-- Test with Serial Monitor: check if CO > 200
-- Ensure MOSFET gate resistor is correct
+**Symptom**: MOSFET shows OFF when CO > 200 ppm
+**Solution**:
+- Verify pin D5 (GPIO14) connection
+- Check MOSFET wiring (Gate → D5, Source → GND, Drain → Load)
+- Test with multimeter
 
-### OLED Not Working
-- Verify I2C address (typically 0x3C)
-- Check SDA/SCL connections
-- Test with I2C scanner sketch
+### OLED Display Blank
+**Symptom**: Nothing appears on display
+**Solution**:
+- Verify I2C address 0x3C (scan with I2C scanner sketch)
+- Check SDA → D2, SCL → D1 connections
+- Ensure 3.3V power supply is stable
 
 ---
 
-## Changes from Original Sir Francis Code
+## What Changed - Enhanced Resilient Version
 
-1. ✅ **Table name**: `your_table_name` → `co_readings`
-2. ✅ **URL**: Updated to production Supabase endpoint
-3. ✅ **Payload**:
-   - Added `device_id` field (required)
-   - Changed `co_ppm` → `co_level`
-   - Added `status` field (safe/warning/critical)
-   - Kept `mosfet_status` (now as boolean)
-4. ✅ **Schema compliance**: All fields match `co_readings` table structure
-5. ✅ **Zero breaking changes**: Core logic (pins, thresholds, display) unchanged
+### New Features vs. Basic Version
+
+1. ✅ **Session Management**
+   - Listens for `START_SESSION` / `STOP_SESSION` commands via WebSocket
+   - Only sends data when session is active
+   - Includes `session_id` in every reading
+
+2. ✅ **Connection Resilience**
+   - WiFi reconnection with exponential backoff (max 5 retries)
+   - HTTP retry logic (3 attempts) for failed POST requests
+   - WebSocket auto-reconnect every 30 seconds if disconnected
+   - Auto-restart after max retry failures
+
+3. ✅ **Time Synchronization**
+   - NTP client syncs time from `pool.ntp.org`
+   - Sends ISO8601 timestamps (`created_at`) with readings
+   - Falls back to `millis()` if NTP unavailable
+
+4. ✅ **Power Management**
+   - Optional deep sleep mode (configurable, disabled by default)
+   - Session timeout (60 minutes) to prevent battery drain
+   - Heartbeat monitoring to detect inactive sessions
+
+5. ✅ **Production Reliability**
+   - Comprehensive error handling and logging
+   - Serial Monitor shows emoji status indicators (✅, ⚠️, ❌)
+   - Connection health checks (WiFi every 10s, WebSocket every 30s)
+   - Command acknowledgment with retry logic
+
+6. ✅ **Schema Compliance**
+   - Payload matches `co_readings` table exactly
+   - Includes all optional fields (`session_id`, `created_at`, `mosfet_status`)
+   - Compatible with PWA session tracking
+
+### Core Hardware Logic Unchanged
+- Pin assignments (A0, D5, I2C) match verified hardware
+- CO thresholds (25/50/200 ppm) unchanged
+- MOSFET control logic identical
+- OLED display code unchanged
+
+---
+
+## Hardware Verification Details
+
+### Confirmed Components
+1. **Microcontroller:** ESP8266 NodeMCU 1.0 (ESP-12E module)
+2. **CO Sensor:** Flying Fish MQ7 module (blue PCB, 4-pin: VCC/GND/D_OUT/A_OUT)
+3. **MOSFET:** IRLZ44N N-channel logic-level MOSFET
+4. **Display:** SSD1306 OLED 128x64, I2C address 0x3C
+5. **Power:** USB 5V recommended
+
+### Flying Fish MQ7 Module Specifications
+
+**Model:** Blue PCB breakout board with 4-pin configuration
+**Pins:** VCC, GND, D_OUT, A_OUT
+**Variants:** Some versions include onboard 5V→3.3V level shifter on A_OUT
+
+**Specifications:**
+- Operating voltage: 5V
+- Heater resistance: 33Ω ± 5%
+- Detection range: 20-2000 ppm CO
+- Warm-up time: 24-48 hours for stable readings
+
+**⚠️ Important:** Not all Flying Fish modules include voltage dividers. Always measure A_OUT voltage before connecting to ESP8266.
+
+### Pre-Deployment Voltage Safety Test
+
+**CRITICAL: Perform BEFORE first power-up**
+
+1. **Measure MQ7 A_OUT voltage:**
+   - Set multimeter to DC voltage mode
+   - Probe: MQ7 A_OUT pin to GND
+   - Expected safe range: 0-1V
+   - **If > 1V:** See voltage divider instructions below
+
+2. **Monitor for voltage damage symptoms:**
+   - All zero readings from A0
+   - Maximum value readings (1023) constantly
+   - Erratic sensor behavior
+
+3. **If voltage exceeds 1V**, add voltage divider:
+   ```
+   MQ7 A_OUT ──┬─── [R1: 270kΩ] ─── A0 (ESP8266)
+               │
+               └─── [R2: 100kΩ] ─── GND
+
+   Output voltage = V_in × (R2 / (R1 + R2))
+                  = 5V × (100k / 370k)
+                  = 1.35V (safe for ESP8266)
+   ```
+
+4. **If voltage divider is added**, update ADC mapping in code:
+   ```cpp
+   // WITHOUT divider (current code):
+   co_ppm = map(analogValue, 0, 1023, 0, 1000);
+
+   // WITH divider (if added):
+   // Compensate for voltage division ratio (0.27)
+   float voltage = analogValue * (1.0 / 1023.0);  // 0-1V
+   float original_voltage = voltage / 0.27;        // Scale back to 0-5V equivalent
+   co_ppm = map(original_voltage * 1023, 0, 1023, 0, 1000);
+   ```
+
+### MOSFET Activation Test
+
+1. Breathe gently on MQ7 sensor (increases CO reading)
+2. Watch Serial Monitor for CO level increase
+3. MOSFET should activate (D5 goes HIGH) when CO > 200 ppm
+4. Verify alarm/ventilation device triggers
+5. MOSFET should deactivate when CO drops below threshold
+
+### Pin Migration History
+
+**Legacy ESP32 Code (Incorrect for ESP8266):**
+```cpp
+#define MQ7_PIN 34        // ❌ ESP32 pin (doesn't exist on ESP8266)
+#define MOSFET_PIN 26     // ❌ ESP32 pin (doesn't exist on ESP8266)
+```
+
+**Current ESP8266 Code (Correct):**
+```cpp
+#define MQ7_PIN A0        // ✅ ESP8266 analog pin (verified)
+#define MOSFET_PIN D5     // ✅ GPIO14 (verified with hardware)
+```
 
 ---
 
@@ -359,11 +501,28 @@ LIMIT 10;
 4. **Ventilation**: Always ensure proper ventilation in vehicles
 5. **Power Supply**: Use appropriate power supply ratings for the ESP8266 and connected devices
 6. **MOSFET Rating**: Ensure IRLZ44N can handle the load current of connected devices
+7. **Flammable Gas Testing**: Test in well-ventilated areas only. MQ7 sensors can heat up during operation.
+
+---
+
+## Quick Start Checklist
+
+- [ ] Install all required libraries in Arduino IDE
+- [ ] Update WiFi credentials in code (lines 46-47)
+- [ ] Verify device `CO-SAFE-001` exists in Supabase
+- [ ] Flash code to ESP8266 NodeMCU
+- [ ] Open Serial Monitor (115200 baud) to watch connection
+- [ ] Wait for "System Ready" message on OLED
+- [ ] Click green "Start" button in PWA Dashboard
+- [ ] Watch Serial Monitor for "✅ Data sent successfully: 201"
+- [ ] Check Supabase table for new readings with `session_id`
 
 ---
 
 **Last Updated**: January 2025
-**Platform**: ESP8266 (NodeMCU 1.0)
+**Code Version**: Enhanced Resilient v2.0
+**Platform**: ESP8266 (NodeMCU 1.0 ESP-12E)
 **IDE**: Arduino IDE 1.8.x or 2.x
-**Database**: Supabase PostgreSQL (CO-SAFE schema with mosfet_status)
-**Schema Version**: v2 (includes mosfet_status column)
+**Database**: Supabase PostgreSQL
+**Schema**: Session-aware with `co_readings`, `sessions`, `device_commands`
+**Realtime**: Supabase WebSocket (ESPSupabase library)
