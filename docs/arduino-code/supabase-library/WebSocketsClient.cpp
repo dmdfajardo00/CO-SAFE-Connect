@@ -619,7 +619,9 @@ bool WebSocketsClient::clientIsConnected(WSclient_t * client) {
  */
 void WebSocketsClient::handleClientData(void) {
     if((_client.status == WSC_HEADER || _client.status == WSC_BODY) && _lastHeaderSent + WEBSOCKETS_TCP_TIMEOUT < millis()) {
-        DEBUG_WEBSOCKETS("[WS-Client][handleClientData] header response timeout.. disconnecting!\n");
+        Serial.printf("[WS-Client] ⏱️ TIMEOUT! No response after %d ms\n", WEBSOCKETS_TCP_TIMEOUT);
+        Serial.printf("[WS-Client] Client status was: %d (WSC_HEADER=%d, WSC_BODY=%d)\n", _client.status, WSC_HEADER, WSC_BODY);
+        Serial.printf("[WS-Client] Free heap at timeout: %d bytes\n", ESP.getFreeHeap());
         clientDisconnect(&_client);
         WEBSOCKETS_YIELD();
         return;
@@ -627,9 +629,11 @@ void WebSocketsClient::handleClientData(void) {
 
     int len = _client.tcp->available();
     if(len > 0) {
+        Serial.printf("[WS-Client] 📥 Received %d bytes from server\n", len);
         switch(_client.status) {
             case WSC_HEADER: {
                 String headerLine = _client.tcp->readStringUntil('\n');
+                Serial.printf("[WS-Client] Header line: %s\n", headerLine.c_str());
                 handleHeader(&_client, &headerLine);
             } break;
             case WSC_BODY: {
@@ -667,9 +671,7 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
 
     client->cKey = base64_encode(&randomKey[0], 16);
 
-#ifndef NODEBUG_WEBSOCKETS
     unsigned long start = micros();
-#endif
 
     String handshake;
     bool ws_header = true;
@@ -731,15 +733,20 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
 
     handshake += NEW_LINE;
 
-    DEBUG_WEBSOCKETS("[WS-Client][sendHeader] handshake %s", (uint8_t *)handshake.c_str());
+    Serial.println("[WS-Client] Sending HTTP upgrade request:");
+    Serial.println(handshake);
+    Serial.printf("[WS-Client] Handshake length: %d bytes\n", handshake.length());
+
     write(client, (uint8_t *)handshake.c_str(), handshake.length());
 
 #if (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
     client->tcp->readStringUntil('\n', &(client->cHttpLine), std::bind(&WebSocketsClient::handleHeader, this, client, &(client->cHttpLine)));
 #endif
 
-    DEBUG_WEBSOCKETS("[WS-Client][sendHeader] sending header... Done (%luus).\n", (micros() - start));
+    Serial.printf("[WS-Client] Header sent successfully (%lu us)\n", (micros() - start));
+    Serial.printf("[WS-Client] Free heap after header send: %d bytes\n", ESP.getFreeHeap());
     _lastHeaderSent = millis();
+    Serial.printf("[WS-Client] Waiting for server response...\n");
 }
 
 /**
@@ -905,7 +912,8 @@ void WebSocketsClient::handleHeader(WSclient_t * client, String * headerLine) {
 }
 
 void WebSocketsClient::connectedCb() {
-    DEBUG_WEBSOCKETS("[WS-Client] connected to %s:%u.\n", _host.c_str(), _port);
+    Serial.printf("[WS-Client] ✅ connectedCb() called for %s:%u\n", _host.c_str(), _port);
+    Serial.printf("[WS-Client] Free heap in connectedCb: %d bytes\n", ESP.getFreeHeap());
 
 #if (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
     _client.tcp->onDisconnect(std::bind([](WebSocketsClient * c, AsyncTCPbuffer * obj, WSclient_t * client) -> bool {

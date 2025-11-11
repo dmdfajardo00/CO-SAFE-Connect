@@ -128,11 +128,14 @@ void SupabaseRealtime::listen()
   // 2nd param: port 443 for WSS
   // 3rd param: url path with apikey
   // 4th param: NULL fingerprint to disable SSL certificate validation
+  // Server address, port, URL, fingerprint, protocol
+  // CRITICAL: Protocol must be empty string - Supabase doesn't use WebSocket sub-protocols
   webSocket.beginSSL(
       hostname.c_str(),
       443,
       slug.c_str(),
-      NULL);
+      NULL,
+      "");  // Empty protocol - Supabase Realtime doesn't support "arduino" protocol
 }
 
 void SupabaseRealtime::processMessage(uint8_t *payload)
