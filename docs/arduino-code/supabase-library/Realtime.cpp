@@ -109,18 +109,15 @@ void SupabaseRealtime::listen()
   // Serialize Phoenix message
   serializeJson(phxJoinMessage, configJSON);
 
-  // Debug: Print the message being sent
-  Serial.println("[Realtime] Sending phx_join message:");
-  Serial.println(configJSON);
-
   String slug = "/realtime/v1/websocket?apikey=" + String(key) + "&vsn=1.0.0";
 
   // Debug connection parameters
   Serial.println("[Realtime] WebSocket connection parameters:");
   Serial.printf("  Hostname: %s\n", hostname.c_str());
   Serial.println("  Port: 443 (WSS)");
-  Serial.printf("  Path: %s\n", slug.c_str());
+  Serial.printf("  Path: %s (first 100 chars)\n", slug.substring(0, 100).c_str());
   Serial.printf("  Free Heap: %d bytes\n", ESP.getFreeHeap());
+  Serial.println("[Realtime] Phoenix message prepared (will send after connection)");
 
   // CRITICAL FIX: Bind event handler BEFORE initiating connection
   // This prevents race condition where connection events fire before handler is ready
@@ -237,6 +234,12 @@ void SupabaseRealtime::begin(String hostname, String key, void (*func)(String))
   this->handler = func;
 
   Serial.printf("[Realtime] Initialized for hostname: %s\n", hostname.c_str());
+
+  // Memory check
+  uint32_t heap = ESP.getFreeHeap();
+  if (heap < 35000) {
+    Serial.printf("[Realtime] WARNING: Low heap memory: %d bytes (need 35KB+)\n", heap);
+  }
 }
 
 int SupabaseRealtime::login_email(String email_a, String password_a)
@@ -267,4 +270,9 @@ int SupabaseRealtime::login_phone(String phone_a, String password_a)
     httpCode = _login_process();
   }
   return httpCode;
+}
+
+bool SupabaseRealtime::isConnected()
+{
+  return webSocket.isConnected();
 }

@@ -287,6 +287,12 @@ void WebSocketsClient::loop(void) {
             } else {
                 _client.ssl->setInsecure();
                 DEBUG_WEBSOCKETS("[WS-Client] Using setInsecure() for ESP8266 BearSSL\n");
+
+                // CRITICAL: Reduce SSL buffer sizes to save memory on ESP8266
+                // Default is 16KB rx + 16KB tx = 32KB total
+                // Reduced to 512 bytes each = 1KB total (saves 31KB!)
+                _client.ssl->setBufferSizes(512, 512);
+                DEBUG_WEBSOCKETS("[WS-Client] Set SSL buffers to 512/512 bytes\n");
             }
             if(_client_cert && _client_key) {
                 _client.ssl->setClientRSACert(_client_cert, _client_key);

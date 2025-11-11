@@ -68,6 +68,7 @@ public:
   void end(); // A way to end the websocket process (if realtime.loop() is called it will reconnect automatically)
   int login_email(String email_a, String password_a);
   int login_phone(String phone_a, String password_a);
+  bool isConnected(); // Check if WebSocket is connected
 };
 
 #endif
