@@ -91,21 +91,36 @@ void SupabaseRealtime::addChangesListener(String table, String event, String sch
 
 void SupabaseRealtime::listen()
 {
-  // Build Phoenix Channel phx_join message
+  // Build Phoenix Channel phx_join message with correct structure
   JsonDocument phxJoinMessage;
-  phxJoinMessage["topic"] = "realtime:public";
   phxJoinMessage["event"] = "phx_join";
+  phxJoinMessage["topic"] = "realtime:*";
   phxJoinMessage["ref"] = "1";
 
-  // Build payload - don't deserialize config, build fresh
+  // Build nested payload structure: payload.config.postgres_changes
+  JsonDocument configDoc;
+  configDoc["postgres_changes"] = postgresChanges;
+
   JsonDocument payloadDoc;
-  payloadDoc["config"]["postgres_changes"] = postgresChanges;
+  payloadDoc["config"] = configDoc;
+
+  // Add access_token to payload for RLS authentication
+  payloadDoc["access_token"] = key;
+
   phxJoinMessage["payload"] = payloadDoc;
 
   // Serialize Phoenix message
   serializeJson(phxJoinMessage, configJSON);
 
+  // Debug: Print the message being sent
+  Serial.println("[Realtime] Sending phx_join message:");
+  Serial.println(configJSON);
+
   String slug = "/realtime/v1/websocket?apikey=" + String(key) + "&vsn=1.0.0";
+
+  // CRITICAL FIX: Bind event handler BEFORE initiating connection
+  // This prevents race condition where connection events fire before handler is ready
+  webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   // Server address, port and URL
   // 1st param: hostname without https://
@@ -117,9 +132,6 @@ void SupabaseRealtime::listen()
       443,
       slug.c_str(),
       NULL);
-
-  // event handler
-  webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 void SupabaseRealtime::processMessage(uint8_t *payload)
@@ -183,7 +195,7 @@ void SupabaseRealtime::loop()
     webSocket.loop();
   }
 
-  if (millis() - last_ms > 30000)
+  if (millis() - last_ms > 20000)  // FIXED: Reduced from 30s to 20s for Supabase compatibility
   {
     last_ms = millis();
     webSocket.sendTXT(jsonRealtimeHeartbeat);
