@@ -102,21 +102,44 @@ void SupabaseRealtime::sendPresence(String device_name)
 
 void SupabaseRealtime::listen()
 {
-  deserializeJson(jsonRealtimeConfig, config);
+  // Build Phoenix Channel phx_join message with correct structure
+  JsonDocument phxJoinMessage;
+  phxJoinMessage["event"] = "phx_join";
+  phxJoinMessage["topic"] = "realtime:*";
+  phxJoinMessage["ref"] = "1";
+
+  // Build nested payload structure: payload.config.postgres_changes
+  JsonDocument configDoc;
+
   if (isPostgresChanges)
   {
-    jsonRealtimeConfig["payload"]["config"]["postgres_changes"] = postgresChanges;
+    configDoc["postgres_changes"] = postgresChanges;
   }
+
   if (isPresence)
   {
-    jsonRealtimeConfig["payload"]["config"]["presence"]["key"] = "";
+    configDoc["presence"]["key"] = "";
   }
   // if (isBroadcast)
   // {
   //   // not implemented yet
-  //   // jsonRealtimeConfig["payload"]["config"]["broadcast"] = broadcastConfig;
+  //   // configDoc["broadcast"] = broadcastConfig;
   // }
-  serializeJson(jsonRealtimeConfig, configJSON);
+
+  JsonDocument payloadDoc;
+  payloadDoc["config"] = configDoc;
+
+  // Add access_token to payload for RLS authentication
+  payloadDoc["access_token"] = key;
+
+  phxJoinMessage["payload"] = payloadDoc;
+
+  // Serialize Phoenix message
+  serializeJson(phxJoinMessage, configJSON);
+
+  // Debug: Print the message being sent
+  Serial.println("[Realtime] Sending phx_join message:");
+  Serial.println(configJSON);
 
   String slug = "/realtime/v1/websocket?apikey=" + String(key) + "&vsn=1.0.0";
 
@@ -152,27 +175,39 @@ void SupabaseRealtime::webSocketEvent(WStype_t type, uint8_t *payload, size_t le
   switch (type)
   {
   case WStype_DISCONNECTED:
-    Serial.println("[WSc] Disconnected!");
+    Serial.println("[WSc] ❌ DISCONNECTED!");
     break;
   case WStype_CONNECTED:
-    Serial.println("[WSc] Connected!");
+    Serial.println("[WSc] ✅ CONNECTED to Supabase Realtime");
+    Serial.println("[WSc] Sending phx_join message...");
     webSocket.sendTXT(configJSON);
     if (useAuth)
+    {
+      Serial.println("[WSc] Sending access_token...");
       webSocket.sendTXT(configAUTH);
+    }
     if (isPresence)
+    {
+      Serial.println("[WSc] Sending presence...");
       webSocket.sendTXT(presenceConfig);
+    }
     break;
   case WStype_TEXT:
+    Serial.printf("[WSc] 📨 RECEIVED: %s\n", payload);
     processMessage(payload);
     break;
   case WStype_BIN:
-    Serial.printf("[WSc] get binary length: %u\n", length);
+    Serial.printf("[WSc] Binary data received: %u bytes\n", length);
     break;
   case WStype_ERROR:
-    Serial.printf("[WSc] Error: %s\n", payload);
+    Serial.printf("[WSc] ⚠️ ERROR: %s\n", payload);
     break;
   case WStype_PING:
+    Serial.println("[WSc] 🏓 PING received");
+    break;
   case WStype_PONG:
+    Serial.println("[WSc] 🏓 PONG received");
+    break;
   case WStype_FRAGMENT_TEXT_START:
   case WStype_FRAGMENT_BIN_START:
   case WStype_FRAGMENT:

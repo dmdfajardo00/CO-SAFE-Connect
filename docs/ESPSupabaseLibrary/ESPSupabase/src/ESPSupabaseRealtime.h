@@ -34,12 +34,12 @@ private:
   String configAUTH;
 
   // Initial config
-  const char *config = R"({"event":"phx_join","topic":"realtime:ESP","payload":{"config":{}},"ref":"ESP"})";
+  const char *config = R"({"event":"phx_join","topic":"realtime:*","payload":{"config":{}},"ref":"1"})";
   // Postgres Changes
   bool isPostgresChanges = false;
   JsonDocument postgresChanges;
   // Presence
-  const char *jsonPresence = R"({"topic":"realtime:ESP","event":"presence","payload":{"type":"presence","event":"track","payload":{"user":"","online_at":""}},"ref":"ESP"})";
+  const char *jsonPresence = R"({"topic":"realtime:*","event":"presence","payload":{"type":"presence","event":"track","payload":{"user":"","online_at":""}},"ref":"2"})";
   bool isPresence = false;
   String presenceConfig;
   // bool isBroadcast = false;  // Not implemented yet
@@ -49,8 +49,8 @@ private:
 
   // Heartbeat
   unsigned int last_ms = millis();
-  const char *jsonRealtimeHeartbeat = R"({"event":"heartbeat","topic":"phoenix","payload":{},"ref":"ESP"})";
-  const char *tokenConfig = R"({"topic":"realtime:ESP","event":"access_token","payload":{"access_token":""},"ref":"ESP"})";
+  const char *jsonRealtimeHeartbeat = R"({"event":"heartbeat","topic":"phoenix","payload":{},"ref":"0"})";
+  const char *tokenConfig = R"({"topic":"realtime:*","event":"access_token","payload":{"access_token":""},"ref":"3"})";
 
   void processMessage(uint8_t *payload);
   void webSocketEvent(WStype_t type, uint8_t *payload, size_t length);
