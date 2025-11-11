@@ -97,15 +97,12 @@ void SupabaseRealtime::listen()
   phxJoinMessage["topic"] = "realtime:*";
   phxJoinMessage["ref"] = "1";
 
-  // Build nested payload structure: payload.config.postgres_changes
-  JsonDocument configDoc;
-  configDoc["postgres_changes"] = postgresChanges;
-
+  // Build payload with config containing postgres_changes
   JsonDocument payloadDoc;
-  payloadDoc["config"] = configDoc;
+  payloadDoc["config"]["postgres_changes"] = postgresChanges;
 
-  // Add access_token to payload for RLS authentication
-  payloadDoc["access_token"] = key;
+  // Note: access_token is already in the URL query string
+  // Don't duplicate it in the payload
 
   phxJoinMessage["payload"] = payloadDoc;
 
@@ -117,6 +114,13 @@ void SupabaseRealtime::listen()
   Serial.println(configJSON);
 
   String slug = "/realtime/v1/websocket?apikey=" + String(key) + "&vsn=1.0.0";
+
+  // Debug connection parameters
+  Serial.println("[Realtime] WebSocket connection parameters:");
+  Serial.printf("  Hostname: %s\n", hostname.c_str());
+  Serial.println("  Port: 443 (WSS)");
+  Serial.printf("  Path: %s\n", slug.c_str());
+  Serial.printf("  Free Heap: %d bytes\n", ESP.getFreeHeap());
 
   // CRITICAL FIX: Bind event handler BEFORE initiating connection
   // This prevents race condition where connection events fire before handler is ready
@@ -155,12 +159,29 @@ void SupabaseRealtime::webSocketEvent(WStype_t type, uint8_t *payload, size_t le
     break;
   case WStype_CONNECTED:
     Serial.println("[WSc] Connected to url: /realtime/v1/websocket");
+    Serial.printf("[WSc] Free Heap: %d bytes\n", ESP.getFreeHeap());
+
+    // Small delay to let server stabilize after handshake
+    delay(100);
+
     Serial.println("[WSc] Sending Phoenix phx_join message...");
     Serial.println(configJSON);  // Debug: show what we're sending
-    webSocket.sendTXT(configJSON);  // Send Phoenix phx_join message
+
+    if (webSocket.sendTXT(configJSON)) {
+      Serial.println("[WSc] phx_join sent successfully");
+    } else {
+      Serial.println("[WSc] ERROR: Failed to send phx_join");
+    }
     break;
   case WStype_TEXT:
     Serial.printf("[WSc] Received: %s\n", payload);  // Debug: show server response
+
+    // Check for Phoenix join acknowledgment
+    if (strstr((char*)payload, "phx_reply") != NULL &&
+        strstr((char*)payload, "\"status\":\"ok\"") != NULL) {
+      Serial.println("[WSc] ✅ Phoenix join acknowledged by server");
+    }
+
     processMessage(payload);
     break;
   case WStype_BIN:
@@ -205,10 +226,17 @@ void SupabaseRealtime::loop()
 
 void SupabaseRealtime::begin(String hostname, String key, void (*func)(String))
 {
+  // Remove any protocol prefix - WebSocket library expects hostname only
   hostname.replace("https://", "");
+  hostname.replace("http://", "");
+  hostname.replace("wss://", "");
+  hostname.replace("ws://", "");
+
   this->hostname = hostname;
   this->key = key;
   this->handler = func;
+
+  Serial.printf("[Realtime] Initialized for hostname: %s\n", hostname.c_str());
 }
 
 int SupabaseRealtime::login_email(String email_a, String password_a)
