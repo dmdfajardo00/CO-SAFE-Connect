@@ -773,8 +773,23 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
     // CRITICAL: Check if connection is still alive after write
     if(client->tcp && !client->tcp->connected()) {
         Serial.println("[WS-Client] ❌ ERROR: Connection lost immediately after sending request!");
+
+        // Try to read any error response that might have been buffered
+        int availableBytes = client->tcp->available();
+        if(availableBytes > 0) {
+            Serial.printf("[WS-Client] Found %d bytes in buffer before disconnect:\n", availableBytes);
+            String errorResponse = client->tcp->readString();
+            Serial.println(errorResponse);
+        }
     } else {
         Serial.println("[WS-Client] ✅ Connection still alive after send");
+
+        // Check if there's an immediate response
+        delay(50);  // Give server time to respond
+        int availableBytes = client->tcp->available();
+        if(availableBytes > 0) {
+            Serial.printf("[WS-Client] Server sent %d bytes immediately:\n", availableBytes);
+        }
     }
 
 #if (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
