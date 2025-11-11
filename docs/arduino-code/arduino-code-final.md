@@ -406,91 +406,6 @@ LIMIT 10;
 
 ---
 
-## Hardware Verification Details
-
-### Confirmed Components
-1. **Microcontroller:** ESP8266 NodeMCU 1.0 (ESP-12E module)
-2. **CO Sensor:** Flying Fish MQ7 module (blue PCB, 4-pin: VCC/GND/D_OUT/A_OUT)
-3. **MOSFET:** IRLZ44N N-channel logic-level MOSFET
-4. **Display:** SSD1306 OLED 128x64, I2C address 0x3C
-5. **Power:** USB 5V recommended
-
-### Flying Fish MQ7 Module Specifications
-
-**Model:** Blue PCB breakout board with 4-pin configuration
-**Pins:** VCC, GND, D_OUT, A_OUT
-**Variants:** Some versions include onboard 5V→3.3V level shifter on A_OUT
-
-**Specifications:**
-- Operating voltage: 5V
-- Heater resistance: 33Ω ± 5%
-- Detection range: 20-2000 ppm CO
-- Warm-up time: 24-48 hours for stable readings
-
-**⚠️ Important:** Not all Flying Fish modules include voltage dividers. Always measure A_OUT voltage before connecting to ESP8266.
-
-### Pre-Deployment Voltage Safety Test
-
-**CRITICAL: Perform BEFORE first power-up**
-
-1. **Measure MQ7 A_OUT voltage:**
-   - Set multimeter to DC voltage mode
-   - Probe: MQ7 A_OUT pin to GND
-   - Expected safe range: 0-1V
-   - **If > 1V:** See voltage divider instructions below
-
-2. **Monitor for voltage damage symptoms:**
-   - All zero readings from A0
-   - Maximum value readings (1023) constantly
-   - Erratic sensor behavior
-
-3. **If voltage exceeds 1V**, add voltage divider:
-   ```
-   MQ7 A_OUT ──┬─── [R1: 270kΩ] ─── A0 (ESP8266)
-               │
-               └─── [R2: 100kΩ] ─── GND
-
-   Output voltage = V_in × (R2 / (R1 + R2))
-                  = 5V × (100k / 370k)
-                  = 1.35V (safe for ESP8266)
-   ```
-
-4. **If voltage divider is added**, update ADC mapping in code:
-   ```cpp
-   // WITHOUT divider (current code):
-   co_ppm = map(analogValue, 0, 1023, 0, 1000);
-
-   // WITH divider (if added):
-   // Compensate for voltage division ratio (0.27)
-   float voltage = analogValue * (1.0 / 1023.0);  // 0-1V
-   float original_voltage = voltage / 0.27;        // Scale back to 0-5V equivalent
-   co_ppm = map(original_voltage * 1023, 0, 1023, 0, 1000);
-   ```
-
-### MOSFET Activation Test
-
-1. Breathe gently on MQ7 sensor (increases CO reading)
-2. Watch Serial Monitor for CO level increase
-3. MOSFET should activate (D5 goes HIGH) when CO > 200 ppm
-4. Verify alarm/ventilation device triggers
-5. MOSFET should deactivate when CO drops below threshold
-
-### Pin Migration History
-
-**Legacy ESP32 Code (Incorrect for ESP8266):**
-```cpp
-#define MQ7_PIN 34        // ❌ ESP32 pin (doesn't exist on ESP8266)
-#define MOSFET_PIN 26     // ❌ ESP32 pin (doesn't exist on ESP8266)
-```
-
-**Current ESP8266 Code (Correct):**
-```cpp
-#define MQ7_PIN A0        // ✅ ESP8266 analog pin (verified)
-#define MOSFET_PIN D5     // ✅ GPIO14 (verified with hardware)
-```
-
----
-
 ## Safety Considerations
 
 ⚠️ **Important Safety Notes**:
@@ -501,7 +416,6 @@ LIMIT 10;
 4. **Ventilation**: Always ensure proper ventilation in vehicles
 5. **Power Supply**: Use appropriate power supply ratings for the ESP8266 and connected devices
 6. **MOSFET Rating**: Ensure IRLZ44N can handle the load current of connected devices
-7. **Flammable Gas Testing**: Test in well-ventilated areas only. MQ7 sensors can heat up during operation.
 
 ---
 
