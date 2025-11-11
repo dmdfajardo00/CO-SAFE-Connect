@@ -30,7 +30,7 @@ WebSocketsClient::WebSocketsClient() {
     _client.num          = 0;
     _client.cIsClient    = true;
     _client.extraHeaders = WEBSOCKETS_STRING("Origin: file://");
-    _reconnectInterval   = 500;
+    _reconnectInterval   = 3000;  // INCREASED: 3 seconds to avoid rapid retry loops
     _port                = 0;
     _host                = "";
 }
@@ -239,6 +239,11 @@ void WebSocketsClient::loop(void) {
         if((millis() - _lastConnectionFail) < _reconnectInterval) {
             return;
         }
+
+        // DIAGNOSTIC: Show reconnection attempt
+        unsigned long timeSinceLastFail = millis() - _lastConnectionFail;
+        Serial.printf("[WS-Client] 🔄 Attempting reconnection (last fail: %lu ms ago, interval: %lu ms)\n",
+                     timeSinceLastFail, _reconnectInterval);
 
 #if defined(HAS_SSL)
         if(_client.isSSL) {
@@ -645,16 +650,26 @@ void WebSocketsClient::handleClientData(void) {
 
     int len = _client.tcp->available();
 
-    // Check if still connected
-    if(!_client.tcp->connected()) {
-        Serial.println("[WS-Client] ⚠️ TCP connection lost while waiting for response!");
-        Serial.printf("[WS-Client] Last header sent: %lu ms ago\n", millis() - _lastHeaderSent);
-        clientDisconnect(&_client);
-        return;
-    }
-
+    // CRITICAL: Check for available data BEFORE checking connection status
+    // Server might send error response then close connection
     if(len > 0) {
         Serial.printf("[WS-Client] 📥 Received %d bytes from server\n", len);
+
+        // If we're expecting a response but connection is dying, capture everything
+        if(!_client.tcp->connected()) {
+            Serial.println("[WS-Client] ⚠️ WARNING: Server closing connection but sent data first!");
+            Serial.println("[WS-Client] ========== SERVER RESPONSE BEFORE CLOSE ==========");
+
+            // Read all available bytes
+            String serverResponse = "";
+            while(_client.tcp->available()) {
+                serverResponse += (char)_client.tcp->read();
+            }
+            Serial.println(serverResponse);
+            Serial.println("[WS-Client] ===================================================");
+            clientDisconnect(&_client);
+            return;
+        }
         switch(_client.status) {
             case WSC_HEADER: {
                 String headerLine = _client.tcp->readStringUntil('\n');
@@ -673,6 +688,17 @@ void WebSocketsClient::handleClientData(void) {
             default:
                 WebSockets::clientDisconnect(&_client, 1002);
                 break;
+        }
+    } else {
+        // No data available, check if connection is lost
+        if(!_client.tcp->connected()) {
+            Serial.println("[WS-Client] ⚠️ TCP connection lost with NO response from server!");
+            Serial.printf("[WS-Client] Last header sent: %lu ms ago\n", millis() - _lastHeaderSent);
+            Serial.printf("[WS-Client] Client status: %d (WSC_HEADER=%d, WSC_CONNECTED=%d)\n",
+                         _client.status, WSC_HEADER, WSC_CONNECTED);
+            Serial.println("[WS-Client] This suggests server rejected the request silently");
+            clientDisconnect(&_client);
+            return;
         }
     }
     WEBSOCKETS_YIELD();

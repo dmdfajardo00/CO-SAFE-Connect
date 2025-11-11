@@ -115,7 +115,19 @@ void SupabaseRealtime::listen()
   Serial.println("[Realtime] WebSocket connection parameters:");
   Serial.printf("  Hostname: %s\n", hostname.c_str());
   Serial.println("  Port: 443 (WSS)");
-  Serial.printf("  Path: %s (first 100 chars)\n", slug.substring(0, 100).c_str());
+
+  // DIAGNOSTIC: Print FULL WebSocket URL to verify format
+  Serial.println("[Realtime] ========== FULL WEBSOCKET URL ==========");
+  Serial.print("wss://");
+  Serial.print(hostname);
+  Serial.print(":443");
+  Serial.println(slug);
+  Serial.println("[Realtime] =======================================");
+
+  // DIAGNOSTIC: Verify API key format
+  Serial.printf("  API Key Length: %d chars\n", String(key).length());
+  Serial.printf("  API Key Preview: %s...\n", String(key).substring(0, 20).c_str());
+  Serial.printf("  Path length: %d chars\n", slug.length());
   Serial.printf("  Free Heap: %d bytes\n", ESP.getFreeHeap());
   Serial.println("[Realtime] Phoenix message prepared (will send after connection)");
 
@@ -124,9 +136,12 @@ void SupabaseRealtime::listen()
   webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   // CRITICAL: Set proper Origin header - store in member variable to avoid dangling pointer
-  originHeader = "Origin: https://" + hostname;
+  // EXPERIMENT: Use browser User-Agent to avoid server filtering Arduino clients
+  originHeader = "Origin: https://" + hostname + "\r\n";
+  originHeader += "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   webSocket.setExtraHeaders(originHeader.c_str());
   Serial.printf("[Realtime] Set Origin header: https://%s\n", hostname.c_str());
+  Serial.println("[Realtime] Using browser User-Agent to mimic Chrome");
 
   // Server address, port and URL
   // 1st param: hostname without https://
@@ -160,7 +175,10 @@ void SupabaseRealtime::webSocketEvent(WStype_t type, uint8_t *payload, size_t le
   switch (type)
   {
   case WStype_DISCONNECTED:
-    Serial.println("[WSc] Disconnected!");
+    Serial.println("[WSc] ❌ Disconnected!");
+    Serial.printf("[WSc] Disconnect at heap: %d bytes\n", ESP.getFreeHeap());
+    // DIAGNOSTIC: Check if we ever successfully connected
+    Serial.println("[WSc] TIP: Check if HTTP 101 Switching Protocols was received");
     break;
   case WStype_CONNECTED:
     Serial.println("[WSc] Connected to url: /realtime/v1/websocket");
@@ -193,7 +211,13 @@ void SupabaseRealtime::webSocketEvent(WStype_t type, uint8_t *payload, size_t le
     Serial.printf("[WSc] get binary length: %u\n", length);
     break;
   case WStype_ERROR:
-    Serial.printf("[WSc] Error: %s\n", payload);
+    Serial.println("[WSc] ⚠️⚠️⚠️ ERROR EVENT RECEIVED ⚠️⚠️⚠️");
+    if (length > 0) {
+      Serial.printf("[WSc] Error payload (%d bytes): %s\n", length, payload);
+    } else {
+      Serial.println("[WSc] Error event with no payload");
+    }
+    Serial.printf("[WSc] Heap at error: %d bytes\n", ESP.getFreeHeap());
     break;
   case WStype_PING:
     Serial.println("[WSc] Received PING");
