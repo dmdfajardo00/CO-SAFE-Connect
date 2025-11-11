@@ -590,17 +590,23 @@ void WebSocketsClient::clientDisconnect(WSclient_t * client) {
  */
 bool WebSocketsClient::clientIsConnected(WSclient_t * client) {
     if(!client->tcp) {
+        Serial.println("[WS-Client] clientIsConnected: No TCP object");
         return false;
     }
 
-    if(client->tcp->connected()) {
-        if(client->status != WSC_NOT_CONNECTED) {
+    bool tcpConnected = client->tcp->connected();
+    bool statusOK = (client->status != WSC_NOT_CONNECTED);
+
+    if(tcpConnected) {
+        if(statusOK) {
             return true;
+        } else {
+            Serial.printf("[WS-Client] clientIsConnected: TCP connected but status=%d\n", client->status);
         }
     } else {
         // client lost
-        if(client->status != WSC_NOT_CONNECTED) {
-            DEBUG_WEBSOCKETS("[WS-Client] connection lost.\n");
+        if(statusOK) {
+            Serial.printf("[WS-Client] clientIsConnected: Connection lost! status=%d\n", client->status);
             // do cleanup
             clientDisconnect(client);
         }
@@ -608,6 +614,7 @@ bool WebSocketsClient::clientIsConnected(WSclient_t * client) {
 
     if(client->tcp) {
         // do cleanup
+        Serial.println("[WS-Client] clientIsConnected: Cleaning up dangling TCP");
         clientDisconnect(client);
     }
 
@@ -618,6 +625,15 @@ bool WebSocketsClient::clientIsConnected(WSclient_t * client) {
  * Handel incomming data from Client
  */
 void WebSocketsClient::handleClientData(void) {
+    // Debug: Show we're being called
+    static unsigned long lastDebugPrint = 0;
+    if(millis() - lastDebugPrint > 1000) {
+        Serial.printf("[WS-Client] handleClientData() called, status=%d, connected=%d, available=%d\n",
+                     _client.status, _client.tcp ? _client.tcp->connected() : 0,
+                     _client.tcp ? _client.tcp->available() : 0);
+        lastDebugPrint = millis();
+    }
+
     if((_client.status == WSC_HEADER || _client.status == WSC_BODY) && _lastHeaderSent + WEBSOCKETS_TCP_TIMEOUT < millis()) {
         Serial.printf("[WS-Client] ⏱️ TIMEOUT! No response after %d ms\n", WEBSOCKETS_TCP_TIMEOUT);
         Serial.printf("[WS-Client] Client status was: %d (WSC_HEADER=%d, WSC_BODY=%d)\n", _client.status, WSC_HEADER, WSC_BODY);
@@ -628,6 +644,15 @@ void WebSocketsClient::handleClientData(void) {
     }
 
     int len = _client.tcp->available();
+
+    // Check if still connected
+    if(!_client.tcp->connected()) {
+        Serial.println("[WS-Client] ⚠️ TCP connection lost while waiting for response!");
+        Serial.printf("[WS-Client] Last header sent: %lu ms ago\n", millis() - _lastHeaderSent);
+        clientDisconnect(&_client);
+        return;
+    }
+
     if(len > 0) {
         Serial.printf("[WS-Client] 📥 Received %d bytes from server\n", len);
         switch(_client.status) {
@@ -737,7 +762,20 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
     Serial.println(handshake);
     Serial.printf("[WS-Client] Handshake length: %d bytes\n", handshake.length());
 
-    write(client, (uint8_t *)handshake.c_str(), handshake.length());
+    size_t bytesWritten = write(client, (uint8_t *)handshake.c_str(), handshake.length());
+    Serial.printf("[WS-Client] Bytes actually written: %d\n", bytesWritten);
+
+    if(bytesWritten != handshake.length()) {
+        Serial.printf("[WS-Client] ⚠️ WARNING: Incomplete write! Expected %d, wrote %d\n",
+                     handshake.length(), bytesWritten);
+    }
+
+    // CRITICAL: Check if connection is still alive after write
+    if(client->tcp && !client->tcp->connected()) {
+        Serial.println("[WS-Client] ❌ ERROR: Connection lost immediately after sending request!");
+    } else {
+        Serial.println("[WS-Client] ✅ Connection still alive after send");
+    }
 
 #if (WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
     client->tcp->readStringUntil('\n', &(client->cHttpLine), std::bind(&WebSocketsClient::handleHeader, this, client, &(client->cHttpLine)));

@@ -123,6 +123,11 @@ void SupabaseRealtime::listen()
   // This prevents race condition where connection events fire before handler is ready
   webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
+  // Set proper Origin header for Supabase
+  String origin = "Origin: https://" + hostname;
+  webSocket.setExtraHeaders(origin.c_str());
+  Serial.printf("[Realtime] Set Origin header: %s\n", origin.c_str());
+
   // Server address, port and URL
   // 1st param: hostname without https://
   // 2nd param: port 443 for WSS
