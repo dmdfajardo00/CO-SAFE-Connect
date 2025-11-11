@@ -21,6 +21,7 @@ private:
 
   String key;
   String hostname;
+  String originHeader;  // Store origin header to avoid dangling pointer
 
   // RLS Stuff
   String phone_or_email;

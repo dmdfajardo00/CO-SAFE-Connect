@@ -123,10 +123,10 @@ void SupabaseRealtime::listen()
   // This prevents race condition where connection events fire before handler is ready
   webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-  // Set proper Origin header for Supabase
-  String origin = "Origin: https://" + hostname;
-  webSocket.setExtraHeaders(origin.c_str());
-  Serial.printf("[Realtime] Set Origin header: %s\n", origin.c_str());
+  // CRITICAL: Set proper Origin header - store in member variable to avoid dangling pointer
+  originHeader = "Origin: https://" + hostname;
+  webSocket.setExtraHeaders(originHeader.c_str());
+  Serial.printf("[Realtime] Set Origin header: https://%s\n", hostname.c_str());
 
   // Server address, port and URL
   // 1st param: hostname without https://
