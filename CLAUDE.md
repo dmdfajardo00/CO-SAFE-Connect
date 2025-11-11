@@ -25,7 +25,7 @@
 - When asked to commit, ensure the message omits any Co-authored-by: Claude trailer.
 - When asked to open a PR, do not auto-merge into main and exclude any Co-authored-by: Claude trailers.
 - When explicitly told to "Commit all", review the staged history and create a sequence of focused commits that group related changes, rather than one omnibus commit, matching the batches observed in git log.
-- Never create new .md documents unless explicitly instructed to do so.
+- **ABSOLUTE RULE:** Never create new `.md`/Markdown documents (notes, drafts, logs, etc.) unless the user explicitly orders it in that request.
 - Pause for explicit user confirmation before making important architectural choices, irreversible refactors, or dependency upgrades.
 - After every response, include succinct feedback options or recommended next steps so the user can react quickly.
 - If any requirement or prompt is unclear, immediately ask the user for clarification instead of assuming.
