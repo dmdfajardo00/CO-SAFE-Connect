@@ -136,12 +136,13 @@ void SupabaseRealtime::listen()
   webSocket.onEvent(std::bind(&SupabaseRealtime::webSocketEvent, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   // CRITICAL: Set proper Origin header - store in member variable to avoid dangling pointer
-  // EXPERIMENT: Use browser User-Agent to avoid server filtering Arduino clients
+  // CRITICAL: Use browser User-Agent to avoid server filtering Arduino clients
+  // NOTE: WebSocketsClient.cpp now checks for existing User-Agent to prevent duplicates
   originHeader = "Origin: https://" + hostname + "\r\n";
-  originHeader += "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  originHeader += "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n";
   webSocket.setExtraHeaders(originHeader.c_str());
   Serial.printf("[Realtime] Set Origin header: https://%s\n", hostname.c_str());
-  Serial.println("[Realtime] Using browser User-Agent to mimic Chrome");
+  Serial.println("[Realtime] Set User-Agent: Mozilla/5.0 (Chrome browser)");
 
   // Server address, port and URL
   // 1st param: hostname without https://

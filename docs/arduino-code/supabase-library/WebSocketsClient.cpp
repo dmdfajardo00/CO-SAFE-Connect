@@ -770,7 +770,14 @@ void WebSocketsClient::sendHeader(WSclient_t * client) {
         handshake += client->extraHeaders + NEW_LINE;
     }
 
-    handshake += WEBSOCKETS_STRING("User-Agent: arduino-WebSocket-Client\r\n");
+    // CRITICAL FIX: Only add default User-Agent if not already provided in extraHeaders
+    // This prevents duplicate User-Agent headers which violate RFC 7230 and cause Cloudflare/Supabase to reject the connection
+    if(client->extraHeaders.indexOf("User-Agent:") == -1) {
+        handshake += WEBSOCKETS_STRING("User-Agent: arduino-WebSocket-Client\r\n");
+        Serial.println("[WS-Client] Using default User-Agent: arduino-WebSocket-Client");
+    } else {
+        Serial.println("[WS-Client] Using custom User-Agent from extraHeaders");
+    }
 
     if(client->base64Authorization.length() > 0) {
         handshake += WEBSOCKETS_STRING("Authorization: Basic ");
