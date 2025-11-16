@@ -30,7 +30,7 @@
 
 // ====== CONFIGURATION ======
 #define POLL_INTERVAL 10000        // Poll for commands every 10 seconds
-#define SEND_INTERVAL 15000        // Send readings every 15 seconds
+#define SEND_INTERVAL 5000         // Send readings every 5 seconds
 #define SESSION_TIMEOUT_MINS 60    // Auto-stop after 60 minutes
 #define WIFI_RETRY_MAX 5
 
