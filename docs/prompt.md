@@ -172,3 +172,23 @@ Reconnecting WiFi (attempt 4/5)...
 [WSc] Disconnected!
 [WSc] Disconnected!
 
+
+
+I need you to read Claude.md for reference
+
+and each of thse files here:
+final-arduino-code (these ones are already good)
+
+docs/ESPSupabaseLibrary (just for context)
+
+I need you to study this: final-arduino-code/Final.ino check if its calibrated properly because it fluctuates up to 1001 and if they needed to be merged with: 
+final-arduino-code/CO_SAFE_Monitor_HTTP_Polling.ino
+
+Also I noticed that the app itself our speedometer is only steady at 1001, is it because of the app, or in supabase or because of the arduino code itself. i need you to study everything for clear context and so u havea full understand, you may use supabase MCP to help you out, review logs and etc. and table data
+
+
+Now i need you to immerse yourself in this codebase and in the supabase use yuor MCP. i need you to write a detailed but concise documentation of how this entire app works, explained to non technical person but include also technical terms like React and etc. and just explain what it is, routing, file strucutre, and also how the supabase interacts with the arduino code here:
+
+final-arduino-code/CO_SAFE_Monitor_MERGED_1.0.ino
+
+Explain HTTP request and polling and include also a diagram map etc. export in .md documentation with diagrams if possible and the supabase schema architecture and explain the relational database, just make it 5 pages max for everything. include an introduction also. spawn multiple specialist subagents to help you out
